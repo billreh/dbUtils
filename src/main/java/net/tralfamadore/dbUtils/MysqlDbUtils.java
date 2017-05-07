@@ -278,8 +278,6 @@ public class MysqlDbUtils implements DbUtils {
         for(Field field : entityClass.getDeclaredFields()) {
             if(field.isAnnotationPresent(Transient.class))
                 continue;
-            if(field.isAnnotationPresent(ManyToOne.class))
-                continue;
             if(field.isAnnotationPresent(OneToMany.class))
                 continue;
             if(field.isAnnotationPresent(OneToOne.class)) {
