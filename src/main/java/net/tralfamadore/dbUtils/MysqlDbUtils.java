@@ -95,16 +95,41 @@ public class MysqlDbUtils implements DbUtils {
 
         String tableName = getTableName(entityClass);
         List<String> columns = getColumnDeclarations(entityClass);
+        columns.addAll(getForeignKeys(entityClass));
 
 
         sql.append("CREATE TABLE ").append(tableName).append(" (\n");
         sql.append(String.join(",\n", columns));
-        sql.append("\n)");
+        sql.append("\n);\n");
 
         if(generate)
             em.createNativeQuery(sql.toString()).executeUpdate();
 
-        return sql.toString() + ";";
+        List<String> alterStatements = getForeignKeysAlter(entityClass);
+
+        if(generate)
+            alterStatements.forEach(s -> em.createNativeQuery(s).executeUpdate());
+
+        alterStatements.forEach(s -> sql.append(s).append(";\n"));
+
+        return sql.toString();
+    }
+
+    private List<String> getForeignKeysAlter(Class entityClass) {
+        List<String> alterStatements = new ArrayList<>();
+
+        for(Field field : entityClass.getDeclaredFields()) {
+            if(field.isAnnotationPresent(OneToMany.class)) {
+                Class type = field.getAnnotation(OneToMany.class).targetEntity();
+                String foreignKey = field.getAnnotation(JoinColumn.class).name();
+                String sql = "ALTER TABLE " + getTableName(type) + " ADD FOREIGN KEY(" +
+                        foreignKey + ") REFERENCES " + getTableName(entityClass) +
+                        "(" + field.getAnnotation(JoinColumn.class).referencedColumnName() + ")";
+                alterStatements.add(sql);
+            }
+        }
+
+        return alterStatements;
     }
 
     @Override
@@ -253,14 +278,69 @@ public class MysqlDbUtils implements DbUtils {
         for(Field field : entityClass.getDeclaredFields()) {
             if(field.isAnnotationPresent(Transient.class))
                 continue;
-            String columnName = getColumnName(field);
-            String columnType = getColumnType(field);
-            String nullable = getNullable(field);
-            String primaryKey = getPrimaryKey(field);
-            columns.add("\t" + columnName + " " + columnType + nullable + primaryKey);
+            if(field.isAnnotationPresent(ManyToOne.class))
+                continue;
+            if(field.isAnnotationPresent(OneToMany.class))
+                continue;
+            if(field.isAnnotationPresent(OneToOne.class)) {
+                columns.add(getOneToOneDeclaration(field));
+            } else {
+                String columnName = getColumnName(field);
+                String columnType = getColumnType(field);
+                String nullable = getNullable(field);
+                String primaryKey = getPrimaryKey(field);
+                columns.add("\t" + columnName + " " + columnType + nullable + primaryKey);
+            }
         }
 
         return columns;
+    }
+
+    private String getOneToOneDeclaration(Field field) {
+        Field idColumn = getIdColumn(field.getType());
+        if(idColumn == null)
+            throw new RuntimeException("Can't find Id on child table of type " + field.getType());
+        if(!field.isAnnotationPresent(JoinColumn.class))
+            throw new RuntimeException("Can't find JoinColumn on child table of type " + field.getType());
+        JoinColumn joinColumn = field.getAnnotation(JoinColumn.class);
+        String columnName = joinColumn.name();
+        String columnType = getColumnType(idColumn);
+        String nullable = getNullable(field);
+        return "\t" + columnName + " " + columnType + nullable;
+    }
+
+    private List<String> getForeignKeys(Class entityClass) {
+        List<String> columns = new ArrayList<>();
+
+        if(entityClass.getDeclaredFields() == null || entityClass.getDeclaredFields().length == 0)
+            return columns;
+
+        for(Field field : entityClass.getDeclaredFields()) {
+            if(field.isAnnotationPresent(OneToOne.class)) {
+                Field idColumn = getIdColumn(field.getType());
+                if(idColumn == null)
+                    throw new RuntimeException("Can't find id column for class " + field.getType().getSimpleName());
+                JoinColumn joinColumn = field.getAnnotation(JoinColumn.class);
+                String columnName = joinColumn.name();
+                String foreignKey = "\tFOREIGN KEY(" + columnName + ") REFERENCES " + getTableName(field.getType()) +
+                        "(" + idColumn.getName() + ")";
+                columns.add(foreignKey);
+            }
+        }
+
+        return columns;
+    }
+
+    private Field getIdColumn(Class entityClass) {
+        if(entityClass.getDeclaredFields() == null || entityClass.getDeclaredFields().length == 0)
+            return null;
+
+        for(Field field : entityClass.getDeclaredFields()) {
+            if(field.isAnnotationPresent(Id.class))
+                return field;
+        }
+
+        return null;
     }
 
     private String getColumnName(Field field) {

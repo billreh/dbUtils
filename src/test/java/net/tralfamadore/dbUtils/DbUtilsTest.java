@@ -2,8 +2,7 @@ package net.tralfamadore.dbUtils;
 
 import net.tralfamadore.config.AppConfig;
 import net.tralfamadore.config.DatabaseConfig;
-import net.tralfamadore.domain.TheAddress;
-import net.tralfamadore.domain.TheBean;
+import net.tralfamadore.domain.*;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -58,21 +57,22 @@ public class DbUtilsTest {
             dbUtils.createTables("net.tralfamadore.domain");
         } catch(Exception ignored) { }
         assertTrue(dbUtils.tableExists("the_bean"));
-        dbUtils.dropTables("net.tralfamadore.domain");
+        dbUtils.dropTables(ChildrenTable.class, ParentTable.class, ChildTable.class, TheAddress.class, TheBean.class);
     }
 
     @Test
     public void testCreateAndDropTables() throws Exception {
         try {
-            dbUtils.dropTables("net.tralfamadore.domain");
+            dbUtils.dropTables(ChildrenTable.class, ParentTable.class, ChildTable.class, TheAddress.class, TheBean.class);
         } catch(Exception ignored) { }
         assertFalse(dbUtils.tableExists("the_address"));
+
         System.out.println(dbUtils.createTables("net.tralfamadore.domain"));
         assertTrue(dbUtils.tableExists("the_address"));
-        dbUtils.dropTables("net.tralfamadore.domain");
+        assertTrue(dbUtils.tableExists("the_bean"));
+
+        dbUtils.dropTables(ChildrenTable.class, ParentTable.class, ChildTable.class, TheAddress.class, TheBean.class);
         assertFalse(dbUtils.tableExists("the_address"));
-        System.out.println(dbUtils.createTables(TheAddress.class, TheBean.class));
-        assertTrue(dbUtils.tableExists("the_address"));
-        dbUtils.dropTables("net.tralfamadore.domain");
+        assertFalse(dbUtils.tableExists("the_bean"));
     }
 }
