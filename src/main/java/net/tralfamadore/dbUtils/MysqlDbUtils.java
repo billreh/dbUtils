@@ -14,6 +14,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -95,7 +96,7 @@ public class MysqlDbUtils implements DbUtils {
 
         String tableName = getTableName(entityClass);
         List<String> columns = getColumnDeclarations(entityClass);
-        columns.addAll(getForeignKeys(entityClass));
+        columns.addAll(getInlineForeignKeys(entityClass));
 
 
         sql.append("CREATE TABLE ").append(tableName).append(" (\n");
@@ -105,7 +106,7 @@ public class MysqlDbUtils implements DbUtils {
         if(generate)
             em.createNativeQuery(sql.toString()).executeUpdate();
 
-        List<String> alterStatements = getForeignKeysAlter(entityClass);
+        List<String> alterStatements = getAlterForeignKeys(entityClass);
 
         if(generate)
             alterStatements.forEach(s -> em.createNativeQuery(s).executeUpdate());
@@ -113,23 +114,6 @@ public class MysqlDbUtils implements DbUtils {
         alterStatements.forEach(s -> sql.append(s).append(";\n"));
 
         return sql.toString();
-    }
-
-    private List<String> getForeignKeysAlter(Class entityClass) {
-        List<String> alterStatements = new ArrayList<>();
-
-        for(Field field : entityClass.getDeclaredFields()) {
-            if(field.isAnnotationPresent(OneToMany.class)) {
-                Class type = field.getAnnotation(OneToMany.class).targetEntity();
-                String foreignKey = field.getAnnotation(JoinColumn.class).name();
-                String sql = "ALTER TABLE " + getTableName(type) + " ADD FOREIGN KEY(" +
-                        foreignKey + ") REFERENCES " + getTableName(entityClass) +
-                        "(" + field.getAnnotation(JoinColumn.class).referencedColumnName() + ")";
-                alterStatements.add(sql);
-            }
-        }
-
-        return alterStatements;
     }
 
     @Override
@@ -176,8 +160,15 @@ public class MysqlDbUtils implements DbUtils {
     @Transactional
     public String createTables(List<Class> entityClasses, boolean generate) {
         StringBuilder sql = new StringBuilder();
-        for(Class entity : entityClasses) {
-            sql.append(createTable(entity, generate)).append("\n");
+        List<EntityClass> dependencies = new ArrayList<>();
+
+        for(Class entity : entityClasses)
+            dependencies.add(findDependencies(entity));
+
+        dependencies.sort(EntityClass.entityClassCreateComparator);
+
+        for(EntityClass entityClass : dependencies) {
+            sql.append(createTable(entityClass.type, generate)).append("\n");
         }
         return sql.toString();
     }
@@ -210,10 +201,19 @@ public class MysqlDbUtils implements DbUtils {
     @Transactional
     public String dropTables(List<Class> entityClasses, boolean generate) {
         StringBuilder sql = new StringBuilder();
+        List<EntityClass> dependencies = new ArrayList<>();
+
         for(Class entity : entityClasses)
-            sql.append(dropTable(entity, generate)).append("\n");
+            dependencies.add(findDependencies(entity));
+
+        dependencies.sort(EntityClass.entityClassDropComparator);
+
+        for(EntityClass entityClass : dependencies)
+            sql.append(dropTable(entityClass.type, generate)).append("\n");
+
         return sql.toString();
     }
+
     @Override
     @Transactional
     public String dropTables(Class... entityClasses) {
@@ -309,7 +309,7 @@ public class MysqlDbUtils implements DbUtils {
         return "\t" + columnName + " " + columnType + nullable;
     }
 
-    private List<String> getForeignKeys(Class entityClass) {
+    private List<String> getInlineForeignKeys(Class entityClass) {
         List<String> columns = new ArrayList<>();
 
         if(entityClass.getDeclaredFields() == null || entityClass.getDeclaredFields().length == 0)
@@ -329,6 +329,30 @@ public class MysqlDbUtils implements DbUtils {
         }
 
         return columns;
+    }
+
+    private List<String> getAlterForeignKeys(Class entityClass) {
+        List<String> alterStatements = new ArrayList<>();
+
+        for(Field field : entityClass.getDeclaredFields()) {
+            if(field.isAnnotationPresent(OneToMany.class)) {
+                Class type = field.getAnnotation(OneToMany.class).targetEntity();
+                if(type == null)
+                    throw new RuntimeException("Error: targetEntity attribute not set on OneToMany annotation - can't" +
+                            "determine foreign key type");
+                String foreignKey = field.getAnnotation(JoinColumn.class) == null ? null :
+                        field.getAnnotation(JoinColumn.class).name();
+                if(foreignKey == null)
+                    throw new RuntimeException("Error: name attribute not set on JoinColumn annotation - can't" +
+                            "determine foreign");
+                String sql = "ALTER TABLE " + getTableName(type) + " ADD FOREIGN KEY(" +
+                        foreignKey + ") REFERENCES " + getTableName(entityClass) +
+                        "(" + field.getAnnotation(JoinColumn.class).referencedColumnName() + ")";
+                alterStatements.add(sql);
+            }
+        }
+
+        return alterStatements;
     }
 
     private Field getIdColumn(Class entityClass) {
@@ -393,5 +417,55 @@ public class MysqlDbUtils implements DbUtils {
 
         throw new RuntimeException("Can't determine column type for field: " + field.getName() + ":" + field.getType() +
                 ":" + field);
+    }
+
+    private EntityClass findDependencies(Class entityClass) {
+        EntityClass result = new EntityClass(entityClass);
+        for(Field field : entityClass.getDeclaredFields()) {
+            if (field.isAnnotationPresent(OneToMany.class)) {
+                Class type = field.getAnnotation(OneToMany.class).targetEntity();
+                if (type == null)
+                    throw new RuntimeException("Error: targetEntity attribute not set on OneToMany annotation - can't" +
+                            "determine foreign key type");
+                result.oneToManyDependencies.add(type);
+            }
+            if (field.isAnnotationPresent(OneToOne.class)) {
+                Class type = field.getAnnotation(OneToOne.class).targetEntity();
+                if (type == null)
+                    throw new RuntimeException("Error: targetEntity attribute not set on OneToOne annotation - can't" +
+                            "determine foreign key type");
+                result.oneToOneDependencies.add(type);
+            }
+        }
+        return result;
+    }
+
+    private static class EntityClass {
+        private static Comparator<EntityClass> entityClassCreateComparator = (o1, o2) -> {
+            if (o1.oneToManyDependencies.contains(o2.type) || o1.oneToOneDependencies.contains(o2.type))
+                return 1;
+            if (o2.type == o1.type)
+                return 0;
+            return -1;
+        };
+        private static Comparator<EntityClass> entityClassDropComparator = (o1, o2) -> {
+            if (o1.oneToOneDependencies.contains(o2.type))
+                return -1;
+            if (o1.oneToManyDependencies.contains(o2.type))
+                return 1;
+            if (o2.type == o1.type)
+                return 0;
+            return 1;
+        };
+
+        private Class type;
+        private List<Class> oneToManyDependencies;
+        private List<Class> oneToOneDependencies;
+
+        public EntityClass(Class type) {
+            this.oneToManyDependencies = new ArrayList<>();
+            this.oneToOneDependencies = new ArrayList<>();
+            this.type = type;
+        }
     }
 }

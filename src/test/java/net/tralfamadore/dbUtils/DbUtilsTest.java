@@ -43,7 +43,7 @@ public class DbUtilsTest {
 
     @Test
     public void testDescribeTable() throws Exception {
-        List<MysqlDbUtils.ColumnDescription> description = dbUtils.describeTable("the_bean");
+        List<MysqlDbUtils.ColumnDescription> description = dbUtils.describeTable("children_table");
         description.forEach(System.out::println);
 
         description = dbUtils.describeTable("not_there");
@@ -63,16 +63,26 @@ public class DbUtilsTest {
     @Test
     public void testCreateAndDropTables() throws Exception {
         try {
-            dbUtils.dropTables(ChildrenTable.class, ParentTable.class, ChildTable.class, TheAddress.class, TheBean.class);
+            dbUtils.dropTables("net.tralfamadore.domain");
         } catch(Exception ignored) { }
         assertFalse(dbUtils.tableExists("the_address"));
+        assertFalse(dbUtils.tableExists("the_bean"));
+        assertFalse(dbUtils.tableExists("parent_table"));
+        assertFalse(dbUtils.tableExists("child_table"));
+        assertFalse(dbUtils.tableExists("children_table"));
 
         System.out.println(dbUtils.createTables("net.tralfamadore.domain"));
         assertTrue(dbUtils.tableExists("the_address"));
         assertTrue(dbUtils.tableExists("the_bean"));
+        assertTrue(dbUtils.tableExists("parent_table"));
+        assertTrue(dbUtils.tableExists("child_table"));
+        assertTrue(dbUtils.tableExists("children_table"));
 
-        dbUtils.dropTables(ChildrenTable.class, ParentTable.class, ChildTable.class, TheAddress.class, TheBean.class);
+        dbUtils.dropTables("net.tralfamadore.domain");
         assertFalse(dbUtils.tableExists("the_address"));
         assertFalse(dbUtils.tableExists("the_bean"));
+        assertFalse(dbUtils.tableExists("parent_table"));
+        assertFalse(dbUtils.tableExists("child_table"));
+        assertFalse(dbUtils.tableExists("children_table"));
     }
 }
