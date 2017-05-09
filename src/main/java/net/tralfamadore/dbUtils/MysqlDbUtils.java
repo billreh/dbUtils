@@ -283,15 +283,19 @@ public class MysqlDbUtils implements DbUtils {
             if(field.isAnnotationPresent(OneToOne.class)) {
                 columns.add(getOneToOneDeclaration(field));
             } else {
-                String columnName = getColumnName(field);
-                String columnType = getColumnType(field);
-                String nullable = getNullable(field);
-                String primaryKey = getPrimaryKey(field);
-                columns.add("\t" + columnName + " " + columnType + nullable + primaryKey);
+                columns.add(getColumnDeclaration(field));
             }
         }
 
         return columns;
+    }
+
+    private String getColumnDeclaration(Field field) {
+        String columnName = getColumnName(field);
+        String columnType = getColumnType(field);
+        String nullable = getNullable(field);
+        String primaryKey = getPrimaryKey(field);
+         return "\t" + columnName + " " + columnType + nullable + primaryKey;
     }
 
     private String getOneToOneDeclaration(Field field) {
