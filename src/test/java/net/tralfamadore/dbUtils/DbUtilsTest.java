@@ -21,6 +21,7 @@ public class DbUtilsTest {
     private static AnnotationConfigApplicationContext context;
     private static DbUtils dbUtils;
 
+    @SuppressWarnings("Duplicates")
     @BeforeClass
     public static void setUp() {
         context = new AnnotationConfigApplicationContext();
@@ -63,7 +64,7 @@ public class DbUtilsTest {
     @Test
     public void testCreateAndDropTables() throws Exception {
         try {
-            dbUtils.dropTables("net.tralfamadore.domain");
+            System.out.println(dbUtils.dropTables(ChildrenTable.class, ParentTable.class, ChildTable.class, TheAddress.class, TheBean.class));
         } catch(Exception ignored) { }
         assertFalse(dbUtils.tableExists("the_address"));
         assertFalse(dbUtils.tableExists("the_bean"));
@@ -71,14 +72,14 @@ public class DbUtilsTest {
         assertFalse(dbUtils.tableExists("child_table"));
         assertFalse(dbUtils.tableExists("children_table"));
 
-        System.out.println(dbUtils.createTables("net.tralfamadore.domain"));
+        System.out.println(dbUtils.createTables(TheBean.class, TheAddress.class, ChildTable.class, ChildrenTable.class, ParentTable.class));
         assertTrue(dbUtils.tableExists("the_address"));
         assertTrue(dbUtils.tableExists("the_bean"));
         assertTrue(dbUtils.tableExists("parent_table"));
         assertTrue(dbUtils.tableExists("child_table"));
         assertTrue(dbUtils.tableExists("children_table"));
 
-        dbUtils.dropTables("net.tralfamadore.domain");
+        System.out.println(dbUtils.dropTables(ChildrenTable.class, ParentTable.class, ChildTable.class, TheAddress.class, TheBean.class));
         assertFalse(dbUtils.tableExists("the_address"));
         assertFalse(dbUtils.tableExists("the_bean"));
         assertFalse(dbUtils.tableExists("parent_table"));
