@@ -374,6 +374,20 @@ public class MysqlDbUtils implements DbUtils {
     }
 
     private String getColumnType(Field field) {
+        if(field.isAnnotationPresent(Enumerated.class)) {
+            Enumerated enumerated = field.getAnnotation(Enumerated.class);
+            switch (enumerated.value()) {
+                case ORDINAL:
+                    return "INT";
+                case STRING:
+                    int maxLen = 0;
+                    Enum<?>[] constants = (Enum<?>[]) field.getType().getEnumConstants();
+                    for(Enum constant : constants)
+                        maxLen = constant.name().length() > maxLen ? constant.name().length() : maxLen;
+                    return "VARCHAR(" + maxLen + ")";
+            }
+        }
+
         if(field.getType() == Long.class || field.getType() == long.class)
             return "BIGINT";
         else if(field.getType() == Integer.class || field.getType() == int.class)

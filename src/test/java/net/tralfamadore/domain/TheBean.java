@@ -1,6 +1,11 @@
 package net.tralfamadore.domain;
 
+import net.tralfamadore.Gender;
+import net.tralfamadore.IsBinary;
+
 import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
 import javax.persistence.Id;
 import javax.validation.constraints.Size;
 import java.time.LocalDate;
@@ -23,6 +28,12 @@ public class TheBean {
     private LocalDateTime timestamp;
 
     private double theDouble;
+
+    @Enumerated(EnumType.STRING)
+    private Gender gender;
+
+    @Enumerated(EnumType.ORDINAL)
+    private IsBinary isBinary;
 
     public Long getId() {
         return id;

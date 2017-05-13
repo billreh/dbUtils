@@ -86,4 +86,9 @@ public class DbUtilsTest {
         assertFalse(dbUtils.tableExists("child_table"));
         assertFalse(dbUtils.tableExists("children_table"));
     }
+
+    @Test
+    public void testEnum() throws Exception {
+        System.out.println(dbUtils.createTable(TheBean.class, false));
+    }
 }
