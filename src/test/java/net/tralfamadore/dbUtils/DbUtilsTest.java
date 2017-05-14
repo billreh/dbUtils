@@ -54,10 +54,10 @@ public class DbUtilsTest {
     public void testTableExists() throws Exception {
         assertFalse(dbUtils.tableExists("not_there"));
         try {
-            dbUtils.createTables("net.tralfamadore.domain");
+            dbUtils.createTable(TheBean.class);
         } catch(Exception ignored) { }
         assertTrue(dbUtils.tableExists("the_bean"));
-        dbUtils.dropTables(ChildrenTable.class, ParentTable.class, ChildTable.class, TheAddress.class, TheBean.class);
+        dbUtils.dropTable(TheBean.class);
     }
 
     @Test
