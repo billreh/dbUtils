@@ -21,7 +21,6 @@ public class DbUtilsTest {
     private static AnnotationConfigApplicationContext context;
     private static DbUtils dbUtils;
 
-    @SuppressWarnings("Duplicates")
     @BeforeClass
     public static void setUp() {
         context = new AnnotationConfigApplicationContext();
@@ -85,10 +84,5 @@ public class DbUtilsTest {
         assertFalse(dbUtils.tableExists("parent_table"));
         assertFalse(dbUtils.tableExists("child_table"));
         assertFalse(dbUtils.tableExists("children_table"));
-    }
-
-    @Test
-    public void testEnum() throws Exception {
-        System.out.println(dbUtils.createTable(TheBean.class, false));
     }
 }
