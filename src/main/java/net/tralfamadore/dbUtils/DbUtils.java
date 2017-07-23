@@ -1,103 +1,110 @@
 package net.tralfamadore.dbUtils;
 
+import org.hibernate.Session;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Class: DbUtils
- * Created by billreh on 5/6/17.
+ * Created by billreh on 7/22/17.
  */
-public interface DbUtils {
-    List<ColumnDescription> describeTable(String tableName);
+@Repository
+public class DbUtils {
+    @PersistenceContext
+    private EntityManager em;
 
-    boolean tableExists(String tableName);
+    public EntityManager getEm() {
+        return em;
+    }
 
-    String createTable(Class entityClass);
+    public void setEm(EntityManager em) {
+        this.em = em;
+    }
 
-    String createTable(Class entityClass, boolean generate);
+    @Transactional
+    public TableDescription getTableDescription(String tableName) {
+        return getTableDescription(tableName, null);
+    }
 
-    String createTables(String packageName);
+    @Transactional
+    private TableDescription getTableDescription(String tableName, String schemaName) {
+        return new TableDescription(getColumnDescriptions(tableName), tableName, schemaName);
+    }
 
-    String createTables(String packageName, boolean generate);
+    @Transactional
+    private List<ColumnDescription> getColumnDescriptions(String tableName) {
+        Session hibernateSession = em.unwrap(Session.class);
 
-    String createTables(Class... entities);
+        return hibernateSession.doReturningWork(connection -> getColumnDescriptions(connection, tableName));
+    }
 
-    String createTables(boolean generate, Class... entities);
+    private List<ColumnDescription> getColumnDescriptions(Connection connection, String tableName) {
+        List<ColumnDescription> columnDescriptions = new ArrayList<>();
+        try {
+            ResultSet resultSet = connection.getMetaData().getColumns(null, null, tableName, "%");
+            while (resultSet.next()) {
+                String name = resultSet.getString("COLUMN_NAME");
+                String type = resultSet.getString("TYPE_NAME");
+                boolean nullable = resultSet.getInt("NULLABLE") == DatabaseMetaData.columnNullable;
+                String defaultValue = resultSet.getString("COLUMN_DEF");
+                int columnSize = resultSet.getInt("COLUMN_SIZE");
+                String comments = resultSet.getString("REMARKS");
 
-    String createTables(List<Class> entityClasses);
-
-    String createTables(List<Class> entityClasses, boolean generate);
-
-    String dropTables(String packageName);
-
-    String dropTables(String packageName, boolean generate);
-
-    String dropTables(List<Class> entityClasses);
-
-    String dropTables(List<Class> entityClasses, boolean generate);
-
-    String dropTables(Class... entityClasses);
-
-    String dropTables(boolean generate, Class... entityClasses);
-
-    String dropTable(Class entityClass);
-
-    String dropTable(Class entityClass, boolean generate);
-
-    List<String> getTableNames();
-
-    class ColumnDescription {
-        private String name;
-        private String type;
-        private boolean nullable;
-        private boolean pk;
-        private String defaultValue;
-        private String additionalArguments;
-
-        public ColumnDescription(String name, String type, boolean nullable, boolean pk, String defaultValue,
-                                 String additionalArguments)
-        {
-            this.name = name;
-            this.type = type;
-            this.nullable = nullable;
-            this.pk = pk;
-            this.defaultValue = defaultValue;
-            this.additionalArguments = additionalArguments;
+                ColumnDescription columnDescription
+                        = new ColumnDescription(name, type, nullable, defaultValue, columnSize, comments);
+                columnDescriptions.add(columnDescription);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
         }
+        addPrimaryKeys(connection, tableName, columnDescriptions);
+        addForeignKeys(connection, tableName, columnDescriptions);
+        return columnDescriptions;
+    }
 
-        public String getName() {
-            return name;
+    private void addForeignKeys(Connection connection, String tableName, List<ColumnDescription> columnDescriptions) {
+        try {
+            ResultSet resultSet = connection.getMetaData().getImportedKeys(null, null, tableName);
+            while(resultSet.next()) {
+                String pkColumnName = resultSet.getString("PKCOLUMN_NAME");
+                String pkTableName = resultSet.getString("PKTABLE_NAME");
+                String fkColumnName = resultSet.getString("FKCOLUMN_NAME");
+                String fkTableName = resultSet.getString("FKTABLE_NAME");
+                for(ColumnDescription columnDescription : columnDescriptions) {
+                    if(columnDescription.getColumnName().equals(fkColumnName)) {
+                        columnDescription.setFk(true);
+                        columnDescription.setReferencedColumn(pkColumnName);
+                        columnDescription.setReferencedTable(pkTableName);
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
         }
+    }
 
-        public String getType() {
-            return type;
-        }
-
-        public boolean isNullable() {
-            return nullable;
-        }
-
-        public boolean isPk() {
-            return pk;
-        }
-
-        public String getDefaultValue() {
-            return defaultValue;
-        }
-
-        public String getAdditionalArguments() {
-            return additionalArguments;
-        }
-
-        @Override
-        public String toString() {
-            return "ColumnDescription{" +
-                    "name='" + name + '\'' +
-                    ", type='" + type + '\'' +
-                    ", nullable=" + nullable +
-                    ", pk=" + pk +
-                    ", defaultValue='" + defaultValue + '\'' +
-                    ", additionalArguments='" + additionalArguments + '\'' +
-                    '}';
+    private void addPrimaryKeys(Connection connection, String tableName, List<ColumnDescription> columnDescriptions) {
+        try {
+            ResultSet resultSet = connection.getMetaData().getPrimaryKeys(null, null, tableName);
+            while(resultSet.next()) {
+                String pkName = resultSet.getString("COLUMN_NAME");
+                for(ColumnDescription columnDescription : columnDescriptions) {
+                    if(columnDescription.getColumnName().equals(pkName)) {
+                        columnDescription.setPk(true);
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
         }
     }
 }

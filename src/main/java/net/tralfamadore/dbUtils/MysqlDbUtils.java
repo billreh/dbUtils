@@ -16,11 +16,11 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Class: DbUtils
+ * Class: IDbUtils
  * Created by billreh on 5/5/17.
  */
 @Repository
-public class MysqlDbUtils implements DbUtils {
+public class MysqlDbUtils implements IDbUtils {
     @PersistenceContext
     private EntityManager em;
 

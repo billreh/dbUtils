@@ -19,7 +19,9 @@ import static org.junit.Assert.assertTrue;
  */
 public class DbUtilsTest {
     private static AnnotationConfigApplicationContext context;
-    private static DbUtils dbUtils;
+    private static IDbUtils dbUtils;
+    private static JdbcDbUtils jdbcDbUtils;
+    private static DbUtils theDbUtils;
 
     @BeforeClass
     public static void setUp() {
@@ -27,7 +29,9 @@ public class DbUtilsTest {
         context.register(AppConfig.class);
         context.register(DatabaseConfig.class);
         context.refresh();
-        dbUtils = context.getBean(DbUtils.class);
+        dbUtils = context.getBean(IDbUtils.class);
+        jdbcDbUtils = context.getBean(JdbcDbUtils.class);
+        theDbUtils = context.getBean(DbUtils.class);
     }
 
     @AfterClass
@@ -55,7 +59,8 @@ public class DbUtilsTest {
         assertFalse(dbUtils.tableExists("not_there"));
         try {
             dbUtils.createTable(TheBean.class);
-        } catch(Exception ignored) { }
+        } catch (Exception ignored) {
+        }
         assertTrue(dbUtils.tableExists("the_bean"));
         dbUtils.dropTable(TheBean.class);
     }
@@ -64,7 +69,8 @@ public class DbUtilsTest {
     public void testCreateAndDropTables() throws Exception {
         try {
             System.out.println(dbUtils.dropTables(ChildrenTable.class, ParentTable.class, ChildTable.class, TheAddress.class, TheBean.class));
-        } catch(Exception ignored) { }
+        } catch (Exception ignored) {
+        }
         assertFalse(dbUtils.tableExists("the_address"));
         assertFalse(dbUtils.tableExists("the_bean"));
         assertFalse(dbUtils.tableExists("parent_table"));
@@ -84,5 +90,37 @@ public class DbUtilsTest {
         assertFalse(dbUtils.tableExists("parent_table"));
         assertFalse(dbUtils.tableExists("child_table"));
         assertFalse(dbUtils.tableExists("children_table"));
+    }
+
+    @Test
+    public void testGetColumnNames() throws Exception {
+        System.out.println(jdbcDbUtils.getColumnNames("address"));
+    }
+
+    @Test
+    public void testJdbcDescribeTable() throws Exception {
+        System.out.println(jdbcDbUtils.describeTable("address"));
+    }
+
+    @Test
+    public void testGetTableDescription() throws Exception {
+        TableDescription tableDescription = theDbUtils.getTableDescription("listing");
+        tableDescription.getForeignKeys().forEach(System.out::println);
+        System.out.println();
+        tableDescription.getPrimaryKeys().forEach(System.out::println);
+        System.out.println();
+        tableDescription.getColumnDescriptions().forEach(System.out::println);
+        System.out.println();
+        tableDescription.getColumnNames().forEach(System.out::println);
+        System.out.println();
+        System.out.println(tableDescription.getSchema());
+        System.out.println();
+        System.out.println(tableDescription.getTableName());
+        System.out.println();
+        System.out.println(tableDescription.getColumnDescription("address_id"));
+
+        for(ColumnDescription columnDescription : tableDescription.getForeignKeys()) {
+            System.out.println(theDbUtils.getTableDescription(columnDescription.getReferencedTable()));
+        }
     }
 }
