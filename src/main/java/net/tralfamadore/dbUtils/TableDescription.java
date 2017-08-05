@@ -59,6 +59,7 @@ public class TableDescription {
         return "TableDescription{" +
                 "schemaName='" + schemaName + '\'' +
                 ", tableName='" + tableName + '\'' +
+                ", comments='" + comments + '\'' +
                 ", columnDescriptions=" + columnDescriptions +
                 '}';
     }

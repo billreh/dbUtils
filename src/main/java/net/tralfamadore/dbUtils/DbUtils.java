@@ -37,24 +37,12 @@ public class DbUtils {
 
     @Transactional
     public TableDescription getTableDescription(String tableName, String schemaName) {
-        return getTableDescription(tableName, schemaName, getColumnDescriptions(tableName, schemaName));
-    }
-
-    @Transactional
-    List<ColumnDescription> getColumnDescriptions(String tableName, String schemaName) {
         Session hibernateSession = em.unwrap(Session.class);
 
-        return hibernateSession.doReturningWork(connection -> getColumnDescriptions(connection, tableName, schemaName));
+        return hibernateSession.doReturningWork(connection -> getTableDescription(connection, tableName, schemaName));
     }
 
-    @Transactional
-    TableDescription getTableDescription(String tableName, String schemaName, List<ColumnDescription> columnDescriptions) {
-        Session hibernateSession = em.unwrap(Session.class);
-
-        return hibernateSession.doReturningWork(connection -> getTableDescription(connection, tableName, schemaName, columnDescriptions));
-    }
-
-    private TableDescription getTableDescription(Connection connection, String tableName, String schemaName, List<ColumnDescription> columnDescriptions) {
+    private TableDescription getTableDescription(Connection connection, String tableName, String schemaName) {
         try {
             ResultSet resultSet = connection.getMetaData().getTables(null, schemaName, tableName, null);
             String realSchemaName = null;
@@ -63,7 +51,7 @@ public class DbUtils {
                 realSchemaName = resultSet.getString("TABLE_SCHEM");
                 comments = resultSet.getString("REMARKS");
             }
-            return new TableDescription(columnDescriptions, tableName, realSchemaName, comments);
+            return new TableDescription(getColumnDescriptions(connection, tableName, schemaName), tableName, realSchemaName, comments);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
