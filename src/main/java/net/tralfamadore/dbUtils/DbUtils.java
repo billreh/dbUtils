@@ -6,115 +6,54 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
-import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Class: DbUtils
  * Created by billreh on 7/22/17.
+ * @author wreh
  */
 @Repository
 public class DbUtils {
+    /** The entity manager */
     @PersistenceContext
     private EntityManager em;
 
+    /**
+     * Get the entity manager.
+     * @return The entity manager.
+     */
     public EntityManager getEm() {
         return em;
     }
 
+    /**
+     * Set the entity manager.
+     * @param em The entity manager.
+     */
     public void setEm(EntityManager em) {
         this.em = em;
     }
 
+    /**
+     * Get a {@link TableDescription} for the given table.
+     * @param tableName The table name.
+     * @return The {@link TableDescription} for the given table name.
+     */
     @Transactional
     public TableDescription getTableDescription(String tableName) {
         return getTableDescription(tableName, null);
     }
 
+    /**
+     * Get a {@link TableDescription} for the given table.
+     * @param tableName The table name.
+     * @param schemaName The schema name.
+     * @return The {@link TableDescription} for the given table and schema names.
+     */
     @Transactional
     public TableDescription getTableDescription(String tableName, String schemaName) {
         Session hibernateSession = em.unwrap(Session.class);
 
-        return hibernateSession.doReturningWork(connection -> getTableDescription(connection, tableName, schemaName));
-    }
-
-    private TableDescription getTableDescription(Connection connection, String tableName, String schemaName) {
-        try {
-            ResultSet resultSet = connection.getMetaData().getTables(null, schemaName, tableName, null);
-            String realSchemaName = null;
-            String comments = null;
-            if(resultSet.next()) {
-                realSchemaName = resultSet.getString("TABLE_SCHEM");
-                comments = resultSet.getString("REMARKS");
-            }
-            return new TableDescription(getColumnDescriptions(connection, tableName, schemaName), tableName, realSchemaName, comments);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private List<ColumnDescription> getColumnDescriptions(Connection connection, String tableName, String schemaName) {
-        List<ColumnDescription> columnDescriptions = new ArrayList<>();
-        try {
-            ResultSet resultSet = connection.getMetaData().getColumns(null, schemaName, tableName, "%");
-            while (resultSet.next()) {
-                String name = resultSet.getString("COLUMN_NAME");
-                String type = resultSet.getString("TYPE_NAME");
-                boolean nullable = resultSet.getInt("NULLABLE") == DatabaseMetaData.columnNullable;
-                String defaultValue = resultSet.getString("COLUMN_DEF");
-                int columnSize = resultSet.getInt("COLUMN_SIZE");
-                String comments = resultSet.getString("REMARKS");
-
-                ColumnDescription columnDescription
-                        = new ColumnDescription(name, type, nullable, defaultValue, columnSize, comments);
-                columnDescriptions.add(columnDescription);
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-        addPrimaryKeys(connection, tableName, columnDescriptions);
-        addForeignKeys(connection, tableName, columnDescriptions);
-        return columnDescriptions;
-    }
-
-    private void addForeignKeys(Connection connection, String tableName, List<ColumnDescription> columnDescriptions) {
-        try {
-            ResultSet resultSet = connection.getMetaData().getImportedKeys(null, null, tableName);
-            while(resultSet.next()) {
-                String pkColumnName = resultSet.getString("PKCOLUMN_NAME");
-                String pkTableName = resultSet.getString("PKTABLE_NAME");
-                String fkColumnName = resultSet.getString("FKCOLUMN_NAME");
-                String fkTableName = resultSet.getString("FKTABLE_NAME");
-                for(ColumnDescription columnDescription : columnDescriptions) {
-                    if(columnDescription.getColumnName().equals(fkColumnName)) {
-                        columnDescription.setFk(true);
-                        columnDescription.setReferencedColumn(pkColumnName);
-                        columnDescription.setReferencedTable(pkTableName);
-                    }
-                }
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private void addPrimaryKeys(Connection connection, String tableName, List<ColumnDescription> columnDescriptions) {
-        try {
-            ResultSet resultSet = connection.getMetaData().getPrimaryKeys(null, null, tableName);
-            while(resultSet.next()) {
-                String pkName = resultSet.getString("COLUMN_NAME");
-                for(ColumnDescription columnDescription : columnDescriptions) {
-                    if(columnDescription.getColumnName().equals(pkName)) {
-                        columnDescription.setPk(true);
-                    }
-                }
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+        return hibernateSession.doReturningWork(connection -> TableDescription.getTableDescription(connection, tableName, schemaName));
     }
 }
