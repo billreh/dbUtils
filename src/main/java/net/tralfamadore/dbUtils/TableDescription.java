@@ -190,7 +190,6 @@ public class TableDescription {
                 String pkColumnName = resultSet.getString("PKCOLUMN_NAME");
                 String pkTableName = resultSet.getString("PKTABLE_NAME");
                 String fkColumnName = resultSet.getString("FKCOLUMN_NAME");
-                String fkTableName = resultSet.getString("FKTABLE_NAME");
                 for(ColumnDescription columnDescription : columnDescriptions) {
                     if(columnDescription.getColumnName().equals(fkColumnName)) {
                         columnDescription.setForeignKey(true);
