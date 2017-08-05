@@ -36,21 +36,43 @@ public class DbUtils {
     }
 
     @Transactional
-    private TableDescription getTableDescription(String tableName, String schemaName) {
-        return new TableDescription(getColumnDescriptions(tableName), tableName, schemaName);
+    public TableDescription getTableDescription(String tableName, String schemaName) {
+        return getTableDescription(tableName, schemaName, getColumnDescriptions(tableName, schemaName));
     }
 
     @Transactional
-    private List<ColumnDescription> getColumnDescriptions(String tableName) {
+    List<ColumnDescription> getColumnDescriptions(String tableName, String schemaName) {
         Session hibernateSession = em.unwrap(Session.class);
 
-        return hibernateSession.doReturningWork(connection -> getColumnDescriptions(connection, tableName));
+        return hibernateSession.doReturningWork(connection -> getColumnDescriptions(connection, tableName, schemaName));
     }
 
-    private List<ColumnDescription> getColumnDescriptions(Connection connection, String tableName) {
+    @Transactional
+    TableDescription getTableDescription(String tableName, String schemaName, List<ColumnDescription> columnDescriptions) {
+        Session hibernateSession = em.unwrap(Session.class);
+
+        return hibernateSession.doReturningWork(connection -> getTableDescription(connection, tableName, schemaName, columnDescriptions));
+    }
+
+    private TableDescription getTableDescription(Connection connection, String tableName, String schemaName, List<ColumnDescription> columnDescriptions) {
+        try {
+            ResultSet resultSet = connection.getMetaData().getTables(null, schemaName, tableName, null);
+            String realSchemaName = null;
+            String comments = null;
+            if(resultSet.next()) {
+                realSchemaName = resultSet.getString("TABLE_SCHEM");
+                comments = resultSet.getString("REMARKS");
+            }
+            return new TableDescription(columnDescriptions, tableName, realSchemaName, comments);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private List<ColumnDescription> getColumnDescriptions(Connection connection, String tableName, String schemaName) {
         List<ColumnDescription> columnDescriptions = new ArrayList<>();
         try {
-            ResultSet resultSet = connection.getMetaData().getColumns(null, null, tableName, "%");
+            ResultSet resultSet = connection.getMetaData().getColumns(null, schemaName, tableName, "%");
             while (resultSet.next()) {
                 String name = resultSet.getString("COLUMN_NAME");
                 String type = resultSet.getString("TYPE_NAME");

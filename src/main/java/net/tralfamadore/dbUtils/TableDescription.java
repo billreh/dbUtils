@@ -12,20 +12,26 @@ import java.util.stream.Collectors;
 public class TableDescription {
     private String schemaName;
     private String tableName;
+    private String comments;
     private List<ColumnDescription> columnDescriptions = new ArrayList<>();
 
-    public TableDescription(List<ColumnDescription> columnDescriptions, String tableName, String schemaName) {
+    public TableDescription(List<ColumnDescription> columnDescriptions, String tableName, String schemaName, String comments) {
         this.columnDescriptions = columnDescriptions;
         this.tableName = tableName;
         this.schemaName = schemaName;
+        this.comments = comments;
     }
 
     public String getTableName() {
         return tableName;
     }
 
-    public String getSchema() {
+    public String getSchemaName() {
         return schemaName;
+    }
+
+    public String getComments() {
+        return comments;
     }
 
     public List<String> getColumnNames() {

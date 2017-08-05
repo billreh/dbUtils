@@ -113,7 +113,7 @@ public class DbUtilsTest {
         System.out.println();
         tableDescription.getColumnNames().forEach(System.out::println);
         System.out.println();
-        System.out.println(tableDescription.getSchema());
+        System.out.println(tableDescription.getSchemaName());
         System.out.println();
         System.out.println(tableDescription.getTableName());
         System.out.println();
