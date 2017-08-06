@@ -18,7 +18,7 @@ import java.util.List;
  * @author wreh
  */
 @Repository
-public class DbUtils {
+public class DatabaseMetaData {
     /** The entity manager */
     @PersistenceContext
     private EntityManager em;
@@ -108,7 +108,7 @@ public class DbUtils {
     public List<String> getCatalogNames() {
         Session hibernateSession = em.unwrap(Session.class);
 
-        return hibernateSession.doReturningWork(this::getCatalogNames);
+        return hibernateSession.doReturningWork(DatabaseMetaData::getCatalogNames);
     }
 
     /**
@@ -118,7 +118,7 @@ public class DbUtils {
      * @param schemaName The schema name.  May be null (all schemas).
      * @return A list of table names matching the pattern.
      */
-    private List<String> getTableNames(Connection connection, String tableNamePattern, String schemaName) {
+    private static List<String> getTableNames(Connection connection, String tableNamePattern, String schemaName) {
         try {
             ResultSet resultSet = connection.getMetaData().getTables(null, schemaName, tableNamePattern, null);
             List<String> tableNames = new ArrayList<>();
@@ -138,7 +138,7 @@ public class DbUtils {
      *                          TEST in them.  Can be null (lists all schemas).
      * @return A list of schema names.
      */
-    private List<String> getSchemaNames(Connection connection, String schemaNamePattern) {
+    private static List<String> getSchemaNames(Connection connection, String schemaNamePattern) {
         try {
             ResultSet resultSet = connection.getMetaData().getSchemas(null, schemaNamePattern);
             List<String> schemsNames = new ArrayList<>();
@@ -156,7 +156,7 @@ public class DbUtils {
      * @param connection The {@link Connection}.
      * @return A list of all catalog names.
      */
-    private List<String> getCatalogNames(Connection connection) {
+    private static List<String> getCatalogNames(Connection connection) {
         try {
             ResultSet resultSet = connection.getMetaData().getCatalogs();
             List<String> catalogNames = new ArrayList<>();
