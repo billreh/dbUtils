@@ -123,4 +123,19 @@ public class DbUtilsTest {
             System.out.println(theDbUtils.getTableDescription(columnDescription.getReferencedTable()));
         }
     }
+
+    @Test
+    public void testGetTheTableNames() {
+        theDbUtils.getTableNames(null, null).forEach(System.out::println);
+    }
+
+    @Test
+    public void testgetSchemaNames() throws Exception {
+        theDbUtils.getSchemaNames(null).forEach(System.out::println);
+    }
+
+    @Test
+    public void testgetCatalogNames() throws Exception {
+        theDbUtils.getCatalogNames().forEach(System.out::println);
+    }
 }
