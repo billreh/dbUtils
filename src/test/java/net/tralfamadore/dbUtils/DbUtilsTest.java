@@ -1,5 +1,6 @@
 package net.tralfamadore.dbUtils;
 
+import net.tralfamadore.*;
 import net.tralfamadore.config.AppConfig;
 import net.tralfamadore.config.DatabaseConfig;
 import net.tralfamadore.domain.*;
@@ -8,7 +9,12 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
+import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -99,7 +105,7 @@ public class DbUtilsTest {
 
     @Test
     public void testJdbcDescribeTable() throws Exception {
-        System.out.println(jdbcDbUtils.describeTable("address"));
+        System.out.println(jdbcDbUtils.describeTable("listing"));
     }
 
     @Test
@@ -137,5 +143,114 @@ public class DbUtilsTest {
     @Test
     public void testgetCatalogNames() throws Exception {
         theDatabaseMetaData.getCatalogNames().forEach(System.out::println);
+    }
+
+    @Test
+    public void testTuple2Select() throws Exception {
+        Optional<Tuple2<Long,String>> tuple2 = theDatabaseMetaData.selectTuple("select id, street from address limit 1", Long.class, String.class);
+        if(tuple2.isPresent()) {
+            System.out.println(tuple2.get().getValue1());
+            System.out.println(tuple2.get().getValue2());
+        } else {
+            System.out.println("empty");
+        }
+
+        List<Tuple2<Long,String>> tuple2s = theDatabaseMetaData.selectTupleList("select id, street from address limit 10", Long.class, String.class);
+        for(Tuple2<Long,String> tuple : tuple2s) {
+            System.out.println(tuple.getValue1());
+            System.out.println(tuple.getValue2());
+        }
+
+        Optional<Tuple3<Long,String,Double>> tuple3 = theDatabaseMetaData.selectTuple(
+                "select id, stringVal, doubleVal from testme limit 1", Long.class, String.class, Double.class);
+        if(tuple3.isPresent()) {
+            System.out.println(tuple3.get().getValue1());
+            System.out.println(tuple3.get().getValue2());
+            System.out.println(tuple3.get().getValue3());
+        } else {
+            System.out.println("empty");
+        }
+
+        List<Tuple3<Long,String,Double>> tuple3s = theDatabaseMetaData.selectTupleList(
+                "select id, stringVal, doubleVal from testme limit 10", Long.class, String.class, Double.class);
+        for(Tuple3<Long,String,Double> tuple : tuple3s) {
+            System.out.println(tuple.getValue1());
+            System.out.println(tuple.getValue2());
+            System.out.println(tuple.getValue3());
+        }
+
+        Optional<Tuple4<Long,String,Double,LocalDate>> tuple4 = theDatabaseMetaData.selectTuple(
+                "select id, stringVal, doubleVal, dateVal from testme limit 1", Long.class,
+                String.class, Double.class, LocalDate.class);
+        if(tuple4.isPresent()) {
+            System.out.println(tuple4.get().getValue1());
+            System.out.println(tuple4.get().getValue2());
+            System.out.println(tuple4.get().getValue3());
+            System.out.println(tuple4.get().getValue4());
+        } else {
+            System.out.println("empty");
+        }
+
+        List<Tuple4<Long,String,Double,LocalDate>> tuple4s = theDatabaseMetaData.selectTupleList(
+                "select id, stringVal, doubleVal, dateVal from testme limit 10", Long.class, String.class, Double.class, LocalDate.class);
+        tuple4s.forEach(System.out::println);
+
+        Optional<Tuple5<Long,String,Double,LocalDate,LocalDateTime>> tuple5 = theDatabaseMetaData.selectTuple(
+                "select id, stringVal, doubleVal, dateVal, timestameVal from testme limit 1", Long.class,
+                String.class, Double.class, LocalDate.class, LocalDateTime.class);
+        if(tuple5.isPresent()) {
+            System.out.println(tuple5.get().getValue1());
+            System.out.println(tuple5.get().getValue2());
+            System.out.println(tuple5.get().getValue3());
+            System.out.println(tuple5.get().getValue4());
+            System.out.println(tuple5.get().getValue5());
+        } else {
+            System.out.println("empty");
+        }
+
+        List<Tuple5<Long,String,Double,LocalDate,LocalDateTime>> tuple5s = theDatabaseMetaData.selectTupleList(
+                "select id, stringVal, doubleVal, dateVal, timestameVal from testme limit 10", Long.class, String.class,
+                Double.class, LocalDate.class, LocalDateTime.class);
+        tuple5s.forEach(System.out::println);
+
+
+        Optional<Tuple6<Long,String,Double,LocalDate,LocalDateTime,Integer>> tuple6 = theDatabaseMetaData.selectTuple(
+                "select id, stringVal, doubleVal, dateVal, timestameVal, 1 from testme limit 1", Long.class,
+                String.class, Double.class, LocalDate.class, LocalDateTime.class, Integer.class);
+        if(tuple6.isPresent()) {
+            System.out.println(tuple6.get().getValue1());
+            System.out.println(tuple6.get().getValue2());
+            System.out.println(tuple6.get().getValue3());
+            System.out.println(tuple6.get().getValue4());
+            System.out.println(tuple6.get().getValue5());
+            System.out.println(tuple6.get().getValue6());
+        } else {
+            System.out.println("empty");
+        }
+
+        List<Tuple6<Long,String,Double,LocalDate,LocalDateTime,Integer>> tuple6s = theDatabaseMetaData.selectTupleList(
+                "select id, stringVal, doubleVal, dateVal, timestameVal, 1 from testme limit 10", Long.class, String.class,
+                Double.class, LocalDate.class, LocalDateTime.class, Integer.class);
+        tuple6s.forEach(System.out::println);
+
+        Optional<Tuple7<Long,String,Double,LocalDate,LocalDateTime,Integer,String>> tuple7 = theDatabaseMetaData.selectTuple(
+                "select id, stringVal, doubleVal, dateVal, timestameVal, 1, 'hello' from testme limit 1", Long.class,
+                String.class, Double.class, LocalDate.class, LocalDateTime.class, Integer.class, String.class);
+        if(tuple7.isPresent()) {
+            System.out.println(tuple7.get().getValue1());
+            System.out.println(tuple7.get().getValue2());
+            System.out.println(tuple7.get().getValue3());
+            System.out.println(tuple7.get().getValue4());
+            System.out.println(tuple7.get().getValue5());
+            System.out.println(tuple7.get().getValue6());
+            System.out.println(tuple7.get().getValue7());
+        } else {
+            System.out.println("empty");
+        }
+
+        List<Tuple7<Long,String,Double,LocalDate,LocalDateTime,Integer,String>> tuple7s = theDatabaseMetaData.selectTupleList(
+                "select id, stringVal, doubleVal, dateVal, timestameVal, 1, 'hello' from testme limit 10", Long.class, String.class,
+                Double.class, LocalDate.class, LocalDateTime.class, Integer.class, String.class);
+        tuple7s.forEach(System.out::println);
     }
 }
