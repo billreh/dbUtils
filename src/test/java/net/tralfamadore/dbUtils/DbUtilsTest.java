@@ -9,11 +9,9 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
-import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -28,7 +26,7 @@ public class DbUtilsTest {
     private static AnnotationConfigApplicationContext context;
     private static IDbUtils dbUtils;
     private static JdbcDbUtils jdbcDbUtils;
-    private static DatabaseMetaData theDatabaseMetaData;
+    private static DatabaseUtils theDatabaseUtils;
 
     @BeforeClass
     public static void setUp() {
@@ -38,7 +36,7 @@ public class DbUtilsTest {
         context.refresh();
         dbUtils = context.getBean(IDbUtils.class);
         jdbcDbUtils = context.getBean(JdbcDbUtils.class);
-        theDatabaseMetaData = context.getBean(DatabaseMetaData.class);
+        theDatabaseUtils = context.getBean(DatabaseUtils.class);
     }
 
     @AfterClass
@@ -111,7 +109,7 @@ public class DbUtilsTest {
 
     @Test
     public void testGetTableDescription() throws Exception {
-        TableDescription tableDescription = theDatabaseMetaData.getTableDescription("listing");
+        TableDescription tableDescription = theDatabaseUtils.getTableDescription("listing");
         tableDescription.getForeignKeys().forEach(System.out::println);
         System.out.println();
         tableDescription.getPrimaryKeys().forEach(System.out::println);
@@ -127,28 +125,28 @@ public class DbUtilsTest {
         System.out.println(tableDescription.getColumnDescription("address_id"));
 
         for(ColumnDescription columnDescription : tableDescription.getForeignKeys()) {
-            System.out.println(theDatabaseMetaData.getTableDescription(columnDescription.getReferencedTable()));
+            System.out.println(theDatabaseUtils.getTableDescription(columnDescription.getReferencedTable()));
         }
     }
 
     @Test
     public void testGetTheTableNames() {
-        theDatabaseMetaData.getTableNames(null, null).forEach(System.out::println);
+        theDatabaseUtils.getTableNames(null, null).forEach(System.out::println);
     }
 
     @Test
     public void testgetSchemaNames() throws Exception {
-        theDatabaseMetaData.getSchemaNames(null).forEach(System.out::println);
+        theDatabaseUtils.getSchemaNames(null).forEach(System.out::println);
     }
 
     @Test
     public void testgetCatalogNames() throws Exception {
-        theDatabaseMetaData.getCatalogNames().forEach(System.out::println);
+        theDatabaseUtils.getCatalogNames().forEach(System.out::println);
     }
 
     @Test
     public void testTuple2Select() throws Exception {
-        Optional<Tuple2<Long,String>> tuple2 = theDatabaseMetaData.selectTuple("select id, street from address limit 1", Long.class, String.class);
+        Optional<Tuple2<Long,String>> tuple2 = theDatabaseUtils.selectTuple("select id, street from address limit 1", Long.class, String.class);
         if(tuple2.isPresent()) {
             System.out.println(tuple2.get().getValue1());
             System.out.println(tuple2.get().getValue2());
@@ -156,13 +154,13 @@ public class DbUtilsTest {
             System.out.println("empty");
         }
 
-        List<Tuple2<Long,String>> tuple2s = theDatabaseMetaData.selectTupleList("select id, street from address limit 10", Long.class, String.class);
+        List<Tuple2<Long,String>> tuple2s = theDatabaseUtils.selectTupleList("select id, street from address limit 10", Long.class, String.class);
         for(Tuple2<Long,String> tuple : tuple2s) {
             System.out.println(tuple.getValue1());
             System.out.println(tuple.getValue2());
         }
 
-        Optional<Tuple3<Long,String,Double>> tuple3 = theDatabaseMetaData.selectTuple(
+        Optional<Tuple3<Long,String,Double>> tuple3 = theDatabaseUtils.selectTuple(
                 "select id, stringVal, doubleVal from testme limit 1", Long.class, String.class, Double.class);
         if(tuple3.isPresent()) {
             System.out.println(tuple3.get().getValue1());
@@ -172,7 +170,7 @@ public class DbUtilsTest {
             System.out.println("empty");
         }
 
-        List<Tuple3<Long,String,Double>> tuple3s = theDatabaseMetaData.selectTupleList(
+        List<Tuple3<Long,String,Double>> tuple3s = theDatabaseUtils.selectTupleList(
                 "select id, stringVal, doubleVal from testme limit 10", Long.class, String.class, Double.class);
         for(Tuple3<Long,String,Double> tuple : tuple3s) {
             System.out.println(tuple.getValue1());
@@ -180,7 +178,7 @@ public class DbUtilsTest {
             System.out.println(tuple.getValue3());
         }
 
-        Optional<Tuple4<Long,String,Double,LocalDate>> tuple4 = theDatabaseMetaData.selectTuple(
+        Optional<Tuple4<Long,String,Double,LocalDate>> tuple4 = theDatabaseUtils.selectTuple(
                 "select id, stringVal, doubleVal, dateVal from testme limit 1", Long.class,
                 String.class, Double.class, LocalDate.class);
         if(tuple4.isPresent()) {
@@ -192,11 +190,11 @@ public class DbUtilsTest {
             System.out.println("empty");
         }
 
-        List<Tuple4<Long,String,Double,LocalDate>> tuple4s = theDatabaseMetaData.selectTupleList(
+        List<Tuple4<Long,String,Double,LocalDate>> tuple4s = theDatabaseUtils.selectTupleList(
                 "select id, stringVal, doubleVal, dateVal from testme limit 10", Long.class, String.class, Double.class, LocalDate.class);
         tuple4s.forEach(System.out::println);
 
-        Optional<Tuple5<Long,String,Double,LocalDate,LocalDateTime>> tuple5 = theDatabaseMetaData.selectTuple(
+        Optional<Tuple5<Long,String,Double,LocalDate,LocalDateTime>> tuple5 = theDatabaseUtils.selectTuple(
                 "select id, stringVal, doubleVal, dateVal, timestameVal from testme limit 1", Long.class,
                 String.class, Double.class, LocalDate.class, LocalDateTime.class);
         if(tuple5.isPresent()) {
@@ -209,13 +207,13 @@ public class DbUtilsTest {
             System.out.println("empty");
         }
 
-        List<Tuple5<Long,String,Double,LocalDate,LocalDateTime>> tuple5s = theDatabaseMetaData.selectTupleList(
+        List<Tuple5<Long,String,Double,LocalDate,LocalDateTime>> tuple5s = theDatabaseUtils.selectTupleList(
                 "select id, stringVal, doubleVal, dateVal, timestameVal from testme limit 10", Long.class, String.class,
                 Double.class, LocalDate.class, LocalDateTime.class);
         tuple5s.forEach(System.out::println);
 
 
-        Optional<Tuple6<Long,String,Double,LocalDate,LocalDateTime,Integer>> tuple6 = theDatabaseMetaData.selectTuple(
+        Optional<Tuple6<Long,String,Double,LocalDate,LocalDateTime,Integer>> tuple6 = theDatabaseUtils.selectTuple(
                 "select id, stringVal, doubleVal, dateVal, timestameVal, 1 from testme limit 1", Long.class,
                 String.class, Double.class, LocalDate.class, LocalDateTime.class, Integer.class);
         if(tuple6.isPresent()) {
@@ -229,12 +227,12 @@ public class DbUtilsTest {
             System.out.println("empty");
         }
 
-        List<Tuple6<Long,String,Double,LocalDate,LocalDateTime,Integer>> tuple6s = theDatabaseMetaData.selectTupleList(
+        List<Tuple6<Long,String,Double,LocalDate,LocalDateTime,Integer>> tuple6s = theDatabaseUtils.selectTupleList(
                 "select id, stringVal, doubleVal, dateVal, timestameVal, 1 from testme limit 10", Long.class, String.class,
                 Double.class, LocalDate.class, LocalDateTime.class, Integer.class);
         tuple6s.forEach(System.out::println);
 
-        Optional<Tuple7<Long,String,Double,LocalDate,LocalDateTime,Integer,String>> tuple7 = theDatabaseMetaData.selectTuple(
+        Optional<Tuple7<Long,String,Double,LocalDate,LocalDateTime,Integer,String>> tuple7 = theDatabaseUtils.selectTuple(
                 "select id, stringVal, doubleVal, dateVal, timestameVal, 1, 'hello' from testme limit 1", Long.class,
                 String.class, Double.class, LocalDate.class, LocalDateTime.class, Integer.class, String.class);
         if(tuple7.isPresent()) {
@@ -249,7 +247,7 @@ public class DbUtilsTest {
             System.out.println("empty");
         }
 
-        List<Tuple7<Long,String,Double,LocalDate,LocalDateTime,Integer,String>> tuple7s = theDatabaseMetaData.selectTupleList(
+        List<Tuple7<Long,String,Double,LocalDate,LocalDateTime,Integer,String>> tuple7s = theDatabaseUtils.selectTupleList(
                 "select id, stringVal, doubleVal, dateVal, timestameVal, 1, 'hello' from testme limit 10", new ArrayList<>(),
                 Long.class, String.class, Double.class, LocalDate.class, LocalDateTime.class, Integer.class, String.class);
         tuple7s.forEach(System.out::println);
@@ -258,14 +256,16 @@ public class DbUtilsTest {
         bindVars.add(0);
         bindVars.add("blah");
 
-        tuple7s = theDatabaseMetaData.selectTupleList(
+        tuple7s = theDatabaseUtils.selectTupleList(
                 "select id, stringVal, doubleVal, dateVal, timestameVal, 1, 'hello' from testme where id > ? and stringVal != ?", bindVars,
                 Long.class, String.class, Double.class, LocalDate.class, LocalDateTime.class, Integer.class, String.class);
         tuple7s.forEach(System.out::println);
 
-        tuple7s = theDatabaseMetaData.selectTupleList(
+        tuple7s = theDatabaseUtils.selectTupleList(
                 "select id, stringVal, doubleVal, dateVal, timestameVal, 1, 'hello' from testme where id > ? and stringVal != ?",
                 Long.class, String.class, Double.class, LocalDate.class, LocalDateTime.class, Integer.class, String.class, 0, "blah");
         tuple7s.forEach(System.out::println);
+
+        System.out.println(theDatabaseUtils.selectTuple("select id, stringVal from testme limit 1", Long.class, String.class));
     }
 }

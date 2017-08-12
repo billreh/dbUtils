@@ -19,7 +19,7 @@ import java.util.*;
  * @author wreh
  */
 @Repository
-public class DatabaseMetaData {
+public class DatabaseUtils {
     /** The entity manager */
     @PersistenceContext
     private EntityManager em;
@@ -109,7 +109,7 @@ public class DatabaseMetaData {
     public List<String> getCatalogNames() {
         Session hibernateSession = em.unwrap(Session.class);
 
-        return hibernateSession.doReturningWork(DatabaseMetaData::getCatalogNames);
+        return hibernateSession.doReturningWork(DatabaseUtils::getCatalogNames);
     }
 
     /**
