@@ -12,6 +12,7 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -249,8 +250,22 @@ public class DbUtilsTest {
         }
 
         List<Tuple7<Long,String,Double,LocalDate,LocalDateTime,Integer,String>> tuple7s = theDatabaseMetaData.selectTupleList(
-                "select id, stringVal, doubleVal, dateVal, timestameVal, 1, 'hello' from testme limit 10", Long.class, String.class,
-                Double.class, LocalDate.class, LocalDateTime.class, Integer.class, String.class);
+                "select id, stringVal, doubleVal, dateVal, timestameVal, 1, 'hello' from testme limit 10", new ArrayList<>(),
+                Long.class, String.class, Double.class, LocalDate.class, LocalDateTime.class, Integer.class, String.class);
+        tuple7s.forEach(System.out::println);
+
+        List<Object> bindVars = new ArrayList<>();
+        bindVars.add(0);
+        bindVars.add("blah");
+
+        tuple7s = theDatabaseMetaData.selectTupleList(
+                "select id, stringVal, doubleVal, dateVal, timestameVal, 1, 'hello' from testme where id > ? and stringVal != ?", bindVars,
+                Long.class, String.class, Double.class, LocalDate.class, LocalDateTime.class, Integer.class, String.class);
+        tuple7s.forEach(System.out::println);
+
+        tuple7s = theDatabaseMetaData.selectTupleList(
+                "select id, stringVal, doubleVal, dateVal, timestameVal, 1, 'hello' from testme where id > ? and stringVal != ?",
+                Long.class, String.class, Double.class, LocalDate.class, LocalDateTime.class, Integer.class, String.class, 0, "blah");
         tuple7s.forEach(System.out::println);
     }
 }

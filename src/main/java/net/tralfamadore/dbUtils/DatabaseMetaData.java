@@ -8,11 +8,10 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 /**
  * Class: DbUtils
@@ -116,6 +115,7 @@ public class DatabaseMetaData {
     /**
      * Select an Optional Tuple2<U,V> from a query.
      * @param query The sql query. Should yield 0 ... 1 two column results.
+     * @param bindVars List of bind variables for the query.
      * @param class1 The first class to bind to.
      * @param class2 The second class to bind to.
      * @param <T> The first type.
@@ -123,15 +123,36 @@ public class DatabaseMetaData {
      * @return An Optional Tuple2<U,V>.
      */
     @Transactional
-    public <T,U> Optional<Tuple2<T,U>> selectTuple(String query, Class<T> class1, Class<U> class2) {
+    public <T,U> Optional<Tuple2<T,U>> selectTuple(String query, List<Object> bindVars, Class<T> class1, Class<U> class2) {
         Session hibernateSession = em.unwrap(Session.class);
 
-        return hibernateSession.doReturningWork(connection -> TupleQuery.select(connection, query, class1, class2));
+        return hibernateSession.doReturningWork(connection ->  {
+            PreparedStatement preparedStatement = connection.prepareStatement(query);
+            bindVariables(bindVars, preparedStatement);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            return TupleQuery.select(resultSet, class1, class2);
+        });
+    }
+
+    /**
+     * Select an Optional Tuple2<U,V> from a query.
+     * @param query The sql query. Should yield 0 ... 1 two column results.
+     * @param class1 The first class to bind to.
+     * @param class2 The second class to bind to.
+     * @param bindVars List of bind variables for the query.
+     * @param <T> The first type.
+     * @param <U> The second type.
+     * @return An Optional Tuple2<U,V>.
+     */
+    @Transactional
+    public <T,U> Optional<Tuple2<T,U>> selectTuple(String query, Class<T> class1, Class<U> class2, Object... bindVars) {
+        return selectTuple(query, bindVars == null ? Collections.emptyList() : Arrays.asList(bindVars), class1, class2);
     }
 
     /**
      * Select a List of Tuple2<U,V> objects from a query.
      * @param query The sql query.  Should yield 0 ... * two column results.
+     * @param bindVars List of bind variables for the query.
      * @param class1 The first class to bind to.
      * @param class2 The second class to bind to.
      * @param <T> The first type.
@@ -139,15 +160,36 @@ public class DatabaseMetaData {
      * @return A List of  Tuple2<T,U> objects.
      */
     @Transactional
-    public <T,U> List<Tuple2<T,U>> selectTupleList(String query, Class<T> class1, Class<U> class2) {
+    public <T,U> List<Tuple2<T,U>> selectTupleList(String query, List<Object> bindVars, Class<T> class1, Class<U> class2) {
         Session hibernateSession = em.unwrap(Session.class);
 
-        return hibernateSession.doReturningWork(connection -> TupleQuery.selectList(connection, query, class1, class2));
+        return hibernateSession.doReturningWork(connection ->  {
+            PreparedStatement preparedStatement = connection.prepareStatement(query);
+            bindVariables(bindVars, preparedStatement);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            return TupleQuery.selectList(resultSet, class1, class2);
+        });
+    }
+
+    /**
+     * Select a List of Tuple2<U,V> objects from a query.
+     * @param query The sql query.  Should yield 0 ... * two column results.
+     * @param class1 The first class to bind to.
+     * @param class2 The second class to bind to.
+     * @param bindVars List of bind variables for the query.
+     * @param <T> The first type.
+     * @param <U> The second type.
+     * @return A List of  Tuple2<T,U> objects.
+     */
+    @Transactional
+    public <T,U> List<Tuple2<T,U>> selectTupleList(String query, Class<T> class1, Class<U> class2, Object... bindVars) {
+        return selectTupleList(query, bindVars == null ? Collections.emptyList() : Arrays.asList(bindVars), class1, class2);
     }
 
     /**
      * Select an Optional Tuple3<U,V,W> from a query.
      * @param query The sql query. Should yield 0 ... 1 three column results.
+     * @param bindVars List of bind variables for the query.
      * @param class1 The first class to bind to.
      * @param class2 The second class to bind to.
      * @param class3 The third class to bind to.
@@ -157,15 +199,38 @@ public class DatabaseMetaData {
      * @return An Optional Tuple3<T,U,V> object.
      */
     @Transactional
-    public <T,U,V> Optional<Tuple3<T,U,V>> selectTuple(String query, Class<T> class1, Class<U> class2, Class<V> class3) {
+    public <T,U,V> Optional<Tuple3<T,U,V>> selectTuple(String query, List<Object> bindVars, Class<T> class1, Class<U> class2, Class<V> class3) {
         Session hibernateSession = em.unwrap(Session.class);
 
-        return hibernateSession.doReturningWork(connection -> TupleQuery.select(connection, query, class1, class2, class3));
+        return hibernateSession.doReturningWork(connection ->  {
+            PreparedStatement preparedStatement = connection.prepareStatement(query);
+            bindVariables(bindVars, preparedStatement);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            return TupleQuery.select(resultSet, class1, class2, class3);
+        });
+    }
+
+    /**
+     * Select an Optional Tuple3<U,V,W> from a query.
+     * @param query The sql query. Should yield 0 ... 1 three column results.
+     * @param class1 The first class to bind to.
+     * @param class2 The second class to bind to.
+     * @param class3 The third class to bind to.
+     * @param bindVars List of bind variables for the query.
+     * @param <T> The first type.
+     * @param <U> The second type.
+     * @param <V> The third type.
+     * @return An Optional Tuple3<T,U,V> object.
+     */
+    @Transactional
+    public <T,U,V> Optional<Tuple3<T,U,V>> selectTuple(String query, Class<T> class1, Class<U> class2, Class<V> class3, Object... bindVars) {
+        return selectTuple(query, bindVars == null ? Collections.emptyList() : Arrays.asList(bindVars), class1, class2, class3);
     }
 
     /**
      * Select a List of Tuple3<U,V,W> objects from a query.
      * @param query The sql query.  Should yield 0 ... * three column results.
+     * @param bindVars List of bind variables for the query.
      * @param class1 The first class to bind to.
      * @param class2 The second class to bind to.
      * @param class3 The third class to bind to.
@@ -175,15 +240,38 @@ public class DatabaseMetaData {
      * @return A List of  Tuple3<T,U,V> objects.
      */
     @Transactional
-    public <T,U,V> List<Tuple3<T,U,V>> selectTupleList(String query, Class<T> class1, Class<U> class2, Class<V> class3) {
+    public <T,U,V> List<Tuple3<T,U,V>> selectTupleList(String query, List<Object> bindVars, Class<T> class1, Class<U> class2, Class<V> class3) {
         Session hibernateSession = em.unwrap(Session.class);
 
-        return hibernateSession.doReturningWork(connection -> TupleQuery.selectList(connection, query, class1, class2, class3));
+        return hibernateSession.doReturningWork(connection ->  {
+            PreparedStatement preparedStatement = connection.prepareStatement(query);
+            bindVariables(bindVars, preparedStatement);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            return TupleQuery.selectList(resultSet, class1, class2, class3);
+        });
+    }
+
+    /**
+     * Select a List of Tuple3<U,V,W> objects from a query.
+     * @param query The sql query.  Should yield 0 ... * three column results.
+     * @param class1 The first class to bind to.
+     * @param class2 The second class to bind to.
+     * @param class3 The third class to bind to.
+     * @param bindVars List of bind variables for the query.
+     * @param <T> The first type.
+     * @param <U> The second type.
+     * @param <V> The third type.
+     * @return A List of  Tuple3<T,U,V> objects.
+     */
+    @Transactional
+    public <T,U,V> List<Tuple3<T,U,V>> selectTupleList(String query, Class<T> class1, Class<U> class2, Class<V> class3, Object... bindVars) {
+        return selectTupleList(query, bindVars == null ? Collections.emptyList() : Arrays.asList(bindVars), class1, class2, class3);
     }
 
     /**
      * Select an Optional Tuple4<U,V,W,X> from a query.
      * @param query The sql query. Should yield 0 ... 1 four column results.
+     * @param bindVars List of bind variables for the query.
      * @param class1 The first class to bind to.
      * @param class2 The second class to bind to.
      * @param class3 The third class to bind to.
@@ -195,15 +283,40 @@ public class DatabaseMetaData {
      * @return An Optional Tuple4<T,U,V,W> object.
      */
     @Transactional
-    public <T,U,V,W> Optional<Tuple4<T,U,V,W>> selectTuple(String query, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4) {
+    public <T,U,V,W> Optional<Tuple4<T,U,V,W>> selectTuple(String query, List<Object> bindVars, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4) {
         Session hibernateSession = em.unwrap(Session.class);
 
-        return hibernateSession.doReturningWork(connection -> TupleQuery.select(connection, query, class1, class2, class3, class4));
+        return hibernateSession.doReturningWork(connection ->  {
+            PreparedStatement preparedStatement = connection.prepareStatement(query);
+            bindVariables(bindVars, preparedStatement);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            return TupleQuery.select(resultSet, class1, class2, class3, class4);
+        });
+    }
+
+    /**
+     * Select an Optional Tuple4<U,V,W,X> from a query.
+     * @param query The sql query. Should yield 0 ... 1 four column results.
+     * @param class1 The first class to bind to.
+     * @param class2 The second class to bind to.
+     * @param class3 The third class to bind to.
+     * @param class4 The fourth class to bind to.
+     * @param bindVars List of bind variables for the query.
+     * @param <T> The first type.
+     * @param <U> The second type.
+     * @param <V> The third type.
+     * @param <W> The fourth type.
+     * @return An Optional Tuple4<T,U,V,W> object.
+     */
+    @Transactional
+    public <T,U,V,W> Optional<Tuple4<T,U,V,W>> selectTuple(String query, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4, Object... bindVars) {
+        return selectTuple(query, bindVars == null ? Collections.emptyList() : Arrays.asList(bindVars), class1, class2, class3, class4);
     }
 
     /**
      * Select a List of Tuple4<U,V,W,X> objects from a query.
      * @param query The sql query.  Should yield 0 ... * four column results.
+     * @param bindVars List of bind variables for the query.
      * @param class1 The first class to bind to.
      * @param class2 The second class to bind to.
      * @param class3 The third class to bind to.
@@ -215,16 +328,41 @@ public class DatabaseMetaData {
      * @return A List of  Tuple4<T,U,V,W> objects.
      */
     @Transactional
-    public <T,U,V,W> List<Tuple4<T,U,V,W>> selectTupleList(String query, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4) {
+    public <T,U,V,W> List<Tuple4<T,U,V,W>> selectTupleList(String query, List<Object> bindVars, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4) {
         Session hibernateSession = em.unwrap(Session.class);
 
-        return hibernateSession.doReturningWork(connection -> TupleQuery.selectList(connection, query, class1, class2, class3, class4));
+        return hibernateSession.doReturningWork(connection ->  {
+            PreparedStatement preparedStatement = connection.prepareStatement(query);
+            bindVariables(bindVars, preparedStatement);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            return TupleQuery.selectList(resultSet, class1, class2, class3, class4);
+        });
+    }
+
+    /**
+     * Select a List of Tuple4<U,V,W,X> objects from a query.
+     * @param query The sql query.  Should yield 0 ... * four column results.
+     * @param class1 The first class to bind to.
+     * @param class2 The second class to bind to.
+     * @param class3 The third class to bind to.
+     * @param class4 The fourth class to bind to.
+     * @param bindVars List of bind variables for the query.
+     * @param <T> The first type.
+     * @param <U> The second type.
+     * @param <V> The third type.
+     * @param <W> The fourth type.
+     * @return A List of  Tuple4<T,U,V,W> objects.
+     */
+    @Transactional
+    public <T,U,V,W> List<Tuple4<T,U,V,W>> selectTupleList(String query, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4, Object... bindVars) {
+        return selectTupleList(query, bindVars == null ? Collections.emptyList() : Arrays.asList(bindVars), class1, class2, class3, class4);
     }
 
     /**
      * Select an Optional Tuple5<U,V,W,X,Y> from a query.
      * Get a Tuple from a query.
      * @param query The sql query. Should yield 0 ... 1 five column results.
+     * @param bindVars List of bind variables for the query.
      * @param class1 The first class to bind to.
      * @param class2 The second class to bind to.
      * @param class3 The third class to bind to.
@@ -238,15 +376,43 @@ public class DatabaseMetaData {
      * @return An Optional Tuple5<T,U,V,W,X> object.
      */
     @Transactional
-    public <T,U,V,W,X> Optional<Tuple5<T,U,V,W,X>> selectTuple(String query, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4, Class<X> class5) {
+    public <T,U,V,W,X> Optional<Tuple5<T,U,V,W,X>> selectTuple(String query, List<Object> bindVars, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4, Class<X> class5) {
         Session hibernateSession = em.unwrap(Session.class);
 
-        return hibernateSession.doReturningWork(connection -> TupleQuery.select(connection, query, class1, class2, class3, class4, class5));
+        return hibernateSession.doReturningWork(connection ->  {
+            PreparedStatement preparedStatement = connection.prepareStatement(query);
+            bindVariables(bindVars, preparedStatement);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            return TupleQuery.select(resultSet, class1, class2, class3, class4, class5);
+        });
+    }
+
+    /**
+     * Select an Optional Tuple5<U,V,W,X,Y> from a query.
+     * Get a Tuple from a query.
+     * @param query The sql query. Should yield 0 ... 1 five column results.
+     * @param class1 The first class to bind to.
+     * @param class2 The second class to bind to.
+     * @param class3 The third class to bind to.
+     * @param class4 The fourth class to bind to.
+     * @param class5 The fifth class to bind to.
+     * @param bindVars List of bind variables for the query.
+     * @param <T> The first type.
+     * @param <U> The second type.
+     * @param <V> The third type.
+     * @param <W> The fourth type.
+     * @param <X> The fifth type.
+     * @return An Optional Tuple5<T,U,V,W,X> object.
+     */
+    @Transactional
+    public <T,U,V,W,X> Optional<Tuple5<T,U,V,W,X>> selectTuple(String query, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4, Class<X> class5, Object... bindVars) {
+        return selectTuple(query, bindVars == null ? Collections.emptyList() : Arrays.asList(bindVars), class1, class2, class3, class4, class5);
     }
 
     /**
      * Select a List of Tuple5<U,V,W,X,Y> objects from a query.
      * @param query The sql query. Should yield 0 ... * five column results.
+     * @param bindVars List of bind variables for the query.
      * @param class1 The first class to bind to.
      * @param class2 The second class to bind to.
      * @param class3 The third class to bind to.
@@ -260,16 +426,43 @@ public class DatabaseMetaData {
      * @return A List of  Tuple4<T,U,V,W,X> objects.
      */
     @Transactional
-    public <T,U,V,W,X> List<Tuple5<T,U,V,W,X>> selectTupleList(String query, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4, Class<X> class5) {
+    public <T,U,V,W,X> List<Tuple5<T,U,V,W,X>> selectTupleList(String query, List<Object> bindVars, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4, Class<X> class5) {
         Session hibernateSession = em.unwrap(Session.class);
 
-        return hibernateSession.doReturningWork(connection -> TupleQuery.selectList(connection, query, class1, class2, class3, class4, class5));
+        return hibernateSession.doReturningWork(connection ->  {
+            PreparedStatement preparedStatement = connection.prepareStatement(query);
+            bindVariables(bindVars, preparedStatement);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            return TupleQuery.selectList(resultSet, class1, class2, class3, class4, class5);
+        });
+    }
+
+    /**
+     * Select a List of Tuple5<U,V,W,X,Y> objects from a query.
+     * @param query The sql query. Should yield 0 ... * five column results.
+     * @param class1 The first class to bind to.
+     * @param class2 The second class to bind to.
+     * @param class3 The third class to bind to.
+     * @param class4 The fourth class to bind to.
+     * @param class5 The fifth class to bind to.
+     * @param bindVars List of bind variables for the query.
+     * @param <T> The first type.
+     * @param <U> The second type.
+     * @param <V> The third type.
+     * @param <W> The fourth type.
+     * @param <X> The fifth type.
+     * @return A List of  Tuple4<T,U,V,W,X> objects.
+     */
+    @Transactional
+    public <T,U,V,W,X> List<Tuple5<T,U,V,W,X>> selectTupleList(String query, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4, Class<X> class5, Object... bindVars) {
+        return selectTupleList(query, bindVars == null ? Collections.emptyList() : Arrays.asList(bindVars), class1, class2, class3, class4, class5);
     }
 
     /**
      * Select an Optional Tuple6<U,V,W,X,Y> from a query.
      * Get a Tuple from a query.
-     * @param query The sql query. Should yield 0 ... 1 five column results.
+     * @param query The sql query. Should yield 0 ... 1 six column results.
+     * @param bindVars List of bind variables for the query.
      * @param class1 The first class to bind to.
      * @param class2 The second class to bind to.
      * @param class3 The third class to bind to.
@@ -285,15 +478,45 @@ public class DatabaseMetaData {
      * @return An Optional Tuple6<T,U,V,W,X,Y> object.
      */
     @Transactional
-    public <T,U,V,W,X,Y> Optional<Tuple6<T,U,V,W,X,Y>> selectTuple(String query, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4, Class<X> class5, Class<Y> class6) {
+    public <T,U,V,W,X,Y> Optional<Tuple6<T,U,V,W,X,Y>> selectTuple(String query, List<Object> bindVars, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4, Class<X> class5, Class<Y> class6) {
         Session hibernateSession = em.unwrap(Session.class);
 
-        return hibernateSession.doReturningWork(connection -> TupleQuery.select(connection, query, class1, class2, class3, class4, class5, class6));
+        return hibernateSession.doReturningWork(connection -> {
+            PreparedStatement preparedStatement = connection.prepareStatement(query);
+            bindVariables(bindVars, preparedStatement);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            return TupleQuery.select(resultSet, class1, class2, class3, class4, class5, class6);
+        });
+    }
+
+    /**
+     * Select an Optional Tuple6<U,V,W,X,Y> from a query.
+     * Get a Tuple from a query.
+     * @param query The sql query. Should yield 0 ... 1 six column results.
+     * @param class1 The first class to bind to.
+     * @param class2 The second class to bind to.
+     * @param class3 The third class to bind to.
+     * @param class4 The fourth class to bind to.
+     * @param class5 The fifth class to bind to.
+     * @param class6 The sixth class to bind to.
+     * @param bindVars List of bind variables for the query.
+     * @param <T> The first type.
+     * @param <U> The second type.
+     * @param <V> The third type.
+     * @param <W> The fourth type.
+     * @param <X> The fifth type.
+     * @param <Y> The sixth type.
+     * @return An Optional Tuple6<T,U,V,W,X,Y> object.
+     */
+    @Transactional
+    public <T,U,V,W,X,Y> Optional<Tuple6<T,U,V,W,X,Y>> selectTuple(String query, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4, Class<X> class5, Class<Y> class6, Object... bindVars) {
+        return selectTuple(query, bindVars == null ? Collections.emptyList() : Arrays.asList(bindVars), class1, class2, class3, class4, class5, class6);
     }
 
     /**
      * Select a List of Tuple6<T,U,V,W,X,Y> objects from a query.
-     * @param query The sql query. Should yield 0 ... * five column results.
+     * @param query The sql query. Should yield 0 ... * six column results.
+     * @param bindVars List of bind variables for the query.
      * @param class1 The first class to bind to.
      * @param class2 The second class to bind to.
      * @param class3 The third class to bind to.
@@ -309,16 +532,45 @@ public class DatabaseMetaData {
      * @return A List of  Tuple6<T,U,V,W,X,Y> objects.
      */
     @Transactional
-    public <T,U,V,W,X,Y> List<Tuple6<T,U,V,W,X,Y>> selectTupleList(String query, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4, Class<X> class5, Class<Y> class6) {
+    public <T,U,V,W,X,Y> List<Tuple6<T,U,V,W,X,Y>> selectTupleList(String query, List<Object> bindVars, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4, Class<X> class5, Class<Y> class6) {
         Session hibernateSession = em.unwrap(Session.class);
 
-        return hibernateSession.doReturningWork(connection -> TupleQuery.selectList(connection, query, class1, class2, class3, class4, class5, class6));
+        return hibernateSession.doReturningWork(connection ->  {
+            PreparedStatement preparedStatement = connection.prepareStatement(query);
+            bindVariables(bindVars, preparedStatement);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            return TupleQuery.selectList(resultSet, class1, class2, class3, class4, class5, class6);
+        });
+    }
+
+    /**
+     * Select a List of Tuple6<T,U,V,W,X,Y> objects from a query.
+     * @param query The sql query. Should yield 0 ... * six column results.
+     * @param class1 The first class to bind to.
+     * @param class2 The second class to bind to.
+     * @param class3 The third class to bind to.
+     * @param class4 The fourth class to bind to.
+     * @param class5 The fifth class to bind to.
+     * @param class6 The sixth class to bind to.
+     * @param bindVars List of bind variables for the query.
+     * @param <T> The first type.
+     * @param <U> The second type.
+     * @param <V> The third type.
+     * @param <W> The fourth type.
+     * @param <X> The fifth type.
+     * @param <Y> The sixth type.
+     * @return A List of  Tuple6<T,U,V,W,X,Y> objects.
+     */
+    @Transactional
+    public <T,U,V,W,X,Y> List<Tuple6<T,U,V,W,X,Y>> selectTupleList(String query, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4, Class<X> class5, Class<Y> class6, Object... bindVars) {
+        return selectTupleList(query, bindVars == null ? Collections.emptyList() : Arrays.asList(bindVars), class1, class2, class3, class4, class5, class6);
     }
 
     /**
      * Select an Optional Tuple7<U,V,W,X,Y<Z> from a query.
      * Get a Tuple from a query.
      * @param query The sql query. Should yield 0 ... 1 five column results.
+     * @param bindVars List of bind variables for the query.
      * @param class1 The first class to bind to.
      * @param class2 The second class to bind to.
      * @param class3 The third class to bind to.
@@ -336,15 +588,47 @@ public class DatabaseMetaData {
      * @return An Optional Tuple7<T,U,V,W,X,Y,Z> object.
      */
     @Transactional
-    public <T,U,V,W,X,Y,Z> Optional<Tuple7<T,U,V,W,X,Y,Z>> selectTuple(String query, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4, Class<X> class5, Class<Y> class6, Class<Z> class7) {
+    public <T,U,V,W,X,Y,Z> Optional<Tuple7<T,U,V,W,X,Y,Z>> selectTuple(String query, List<Object> bindVars, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4, Class<X> class5, Class<Y> class6, Class<Z> class7) {
         Session hibernateSession = em.unwrap(Session.class);
 
-        return hibernateSession.doReturningWork(connection -> TupleQuery.select(connection, query, class1, class2, class3, class4, class5, class6, class7));
+        return hibernateSession.doReturningWork(connection -> {
+            PreparedStatement preparedStatement = connection.prepareStatement(query);
+            bindVariables(bindVars, preparedStatement);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            return TupleQuery.select(resultSet, class1, class2, class3, class4, class5, class6, class7);
+        });
+    }
+
+    /**
+     * Select an Optional Tuple7<U,V,W,X,Y<Z> from a query.
+     * Get a Tuple from a query.
+     * @param query The sql query. Should yield 0 ... 1 five column results.
+     * @param class1 The first class to bind to.
+     * @param class2 The second class to bind to.
+     * @param class3 The third class to bind to.
+     * @param class4 The fourth class to bind to.
+     * @param class5 The fifth class to bind to.
+     * @param class6 The sixth class to bind to.
+     * @param class7 The seventh class to bind to.
+     * @param bindVars List of bind variables for the query.
+     * @param <T> The first type.
+     * @param <U> The second type.
+     * @param <V> The third type.
+     * @param <W> The fourth type.
+     * @param <X> The fifth type.
+     * @param <Y> The sixth type.
+     * @param <Z> The seventh type.
+     * @return An Optional Tuple7<T,U,V,W,X,Y,Z> object.
+     */
+    @Transactional
+    public <T,U,V,W,X,Y,Z> Optional<Tuple7<T,U,V,W,X,Y,Z>> selectTuple(String query, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4, Class<X> class5, Class<Y> class6, Class<Z> class7, Object... bindVars) {
+        return selectTuple(query, bindVars == null ? Collections.emptyList() : Arrays.asList(bindVars), class1, class2, class3, class4, class5, class6, class7);
     }
 
     /**
      * Select a List of Tuple7<T,U,V,W,X,Y,Z> objects from a query.
      * @param query The sql query. Should yield 0 ... * five column results.
+     * @param bindVars List of bind variables for the query.
      * @param class1 The first class to bind to.
      * @param class2 The second class to bind to.
      * @param class3 The third class to bind to.
@@ -362,10 +646,53 @@ public class DatabaseMetaData {
      * @return A List of  Tuple7<T,U,V,W,X,Y,Z> objects.
      */
     @Transactional
-    public <T,U,V,W,X,Y,Z> List<Tuple7<T,U,V,W,X,Y,Z>> selectTupleList(String query, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4, Class<X> class5, Class<Y> class6, Class<Z> class7) {
+    public <T,U,V,W,X,Y,Z> List<Tuple7<T,U,V,W,X,Y,Z>> selectTupleList(String query, List<Object> bindVars, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4, Class<X> class5, Class<Y> class6, Class<Z> class7) {
         Session hibernateSession = em.unwrap(Session.class);
 
-        return hibernateSession.doReturningWork(connection -> TupleQuery.selectList(connection, query, class1, class2, class3, class4, class5, class6, class7));
+        return hibernateSession.doReturningWork(connection -> {
+            PreparedStatement preparedStatement = connection.prepareStatement(query);
+            bindVariables(bindVars, preparedStatement);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            return TupleQuery.selectList(resultSet, class1, class2, class3, class4, class5, class6, class7);
+        });
+    }
+
+    /**
+     * Select a List of Tuple7<T,U,V,W,X,Y,Z> objects from a query.
+     * @param query The sql query. Should yield 0 ... * five column results.
+     * @param class1 The first class to bind to.
+     * @param class2 The second class to bind to.
+     * @param class3 The third class to bind to.
+     * @param class4 The fourth class to bind to.
+     * @param class5 The fifth class to bind to.
+     * @param class6 The sixth class to bind to.
+     * @param class7 The seventh class to bind to.
+     * @param bindVars List of bind variables for the query.
+     * @param <T> The first type.
+     * @param <U> The second type.
+     * @param <V> The third type.
+     * @param <W> The fourth type.
+     * @param <X> The fifth type.
+     * @param <Y> The sixth type.
+     * @param <Z> The seventh type.
+     * @return A List of  Tuple7<T,U,V,W,X,Y,Z> objects.
+     */
+    @Transactional
+    public <T,U,V,W,X,Y,Z> List<Tuple7<T,U,V,W,X,Y,Z>> selectTupleList(String query, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4, Class<X> class5, Class<Y> class6, Class<Z> class7, Object... bindVars) {
+        return selectTupleList(query, bindVars == null ? Collections.emptyList() : Arrays.asList(bindVars), class1, class2, class3, class4, class5, class6, class7);
+    }
+
+    /**
+     * Bind the variables to the prepared statement.
+     * @param bindVars The variables to bind.
+     * @param preparedStatement The prepared statement to bind them to.
+     * @throws SQLException When preparedStatement.setObject throws a sql exception.
+     */
+    private static void bindVariables(List<Object> bindVars, PreparedStatement preparedStatement) throws SQLException {
+        int i = 1;
+        for(Object bindVar : bindVars) {
+            preparedStatement.setObject(i++, bindVar);
+        }
     }
 
     /**
