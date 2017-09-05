@@ -1,19 +1,21 @@
 package net.tralfamadore.dbUtils;
 
+import com.google.common.base.Stopwatch;
 import net.tralfamadore.*;
 import net.tralfamadore.config.AppConfig;
-import net.tralfamadore.config.DatabaseConfig;
+import net.tralfamadore.dbUtils.entity.Address;
+import net.tralfamadore.dbUtils.entity.Listing;
 import net.tralfamadore.domain.*;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -32,11 +34,10 @@ public class DbUtilsTest {
     public static void setUp() {
         context = new AnnotationConfigApplicationContext();
         context.register(AppConfig.class);
-        context.register(DatabaseConfig.class);
         context.refresh();
         dbUtils = context.getBean(IDbUtils.class);
         jdbcDbUtils = context.getBean(JdbcDbUtils.class);
-        theDatabaseUtils = context.getBean(DatabaseUtils.class);
+        theDatabaseUtils = new DatabaseUtils();
     }
 
     @AfterClass
@@ -146,7 +147,7 @@ public class DbUtilsTest {
 
     @Test
     public void testTuple2Select() throws Exception {
-        Optional<Tuple2<Long,String>> tuple2 = theDatabaseUtils.selectTuple("select id, street from address limit 1", Long.class, String.class);
+        Optional<Tuple2<Long,String>> tuple2 = theDatabaseUtils.sql("select id, street from address limit 1").selectTuple(Long.class, String.class);
         if(tuple2.isPresent()) {
             System.out.println(tuple2.get().getValue1());
             System.out.println(tuple2.get().getValue2());
@@ -154,14 +155,14 @@ public class DbUtilsTest {
             System.out.println("empty");
         }
 
-        List<Tuple2<Long,String>> tuple2s = theDatabaseUtils.selectTupleList("select id, street from address limit 10", Long.class, String.class);
+        List<Tuple2<Long,String>> tuple2s = new DatabaseUtils().sql("select id, street from address limit 10").selectTupleList(Long.class, String.class);
         for(Tuple2<Long,String> tuple : tuple2s) {
             System.out.println(tuple.getValue1());
             System.out.println(tuple.getValue2());
         }
 
-        Optional<Tuple3<Long,String,Double>> tuple3 = theDatabaseUtils.selectTuple(
-                "select id, stringVal, doubleVal from testme limit 1", Long.class, String.class, Double.class);
+        Optional<Tuple3<Long,String,Double>> tuple3 = new DatabaseUtils().sql(
+                "select id, stringVal, doubleVal from testme limit 1").selectTuple(Long.class, String.class, Double.class);
         if(tuple3.isPresent()) {
             System.out.println(tuple3.get().getValue1());
             System.out.println(tuple3.get().getValue2());
@@ -170,8 +171,8 @@ public class DbUtilsTest {
             System.out.println("empty");
         }
 
-        List<Tuple3<Long,String,Double>> tuple3s = theDatabaseUtils.selectTupleList(
-                "select id, stringVal, doubleVal from testme limit 10", Long.class, String.class, Double.class);
+        List<Tuple3<Long,String,Double>> tuple3s = new DatabaseUtils().sql(
+                "select id, stringVal, doubleVal from testme limit 10").selectTupleList(Long.class, String.class, Double.class);
         for(Tuple3<Long,String,Double> tuple : tuple3s) {
             System.out.println(tuple.getValue1());
             System.out.println(tuple.getValue2());
@@ -266,6 +267,90 @@ public class DbUtilsTest {
                 Long.class, String.class, Double.class, LocalDate.class, LocalDateTime.class, Integer.class, String.class, 0, "blah");
         tuple7s.forEach(System.out::println);
 
-        System.out.println(theDatabaseUtils.selectTuple("select id, stringVal from testme limit 1", Long.class, String.class));
+        System.out.println(new DatabaseUtils().sql("select id, stringVal from testme limit 1").selectTuple(Long.class, String.class));
+    }
+
+    @Test
+    public void testSelectMap() {
+        Optional<Map<String,Object>> row = theDatabaseUtils.sql("select * from testme limit 1").selectMap();
+        if(row.isPresent()) {
+            row.get().keySet().forEach(k -> {
+                System.out.println(k + " -> " + row.get().get(k));
+            });
+        }
+    }
+
+    @Test
+    public void cacheTest() throws Exception {
+        Stopwatch stopwatch = Stopwatch.createStarted();
+        Optional<Object[]> row = new DatabaseUtils().cache(2, TimeUnit.SECONDS).sql("select * from address limit 1").select();
+        System.out.println(stopwatch.toString());
+        stopwatch.reset();
+        stopwatch.start();
+        row = new DatabaseUtils().cache(2, TimeUnit.SECONDS).sql("select * from address limit 1").select();
+        System.out.println(stopwatch.toString());
+        Thread.sleep(1000);
+        stopwatch.reset();
+        stopwatch.start();
+        row = new DatabaseUtils().cache(2, TimeUnit.SECONDS).sql("select * from address limit 1").select();
+        System.out.println(stopwatch.toString());
+        Thread.sleep(2000);
+        stopwatch.reset();
+        stopwatch.start();
+        row = new DatabaseUtils().cache(2, TimeUnit.SECONDS).sql("select * from address limit 1").select();
+        System.out.println(stopwatch.toString());
+    }
+
+    @Test(expected = ClassCastException.class)
+    public void testBreakCache() throws Exception {
+        Optional<Date> now = new DatabaseUtils().cache(1, TimeUnit.MINUTES).sql("select dateVal from testme limit 1").select(Date.class);
+        System.out.println(now.get().getTime());
+        now = new DatabaseUtils().sql("select dateVal from testme limit 1").select(Date.class);
+        System.out.println(now.get().getTime());
+        Optional<LocalDate> alsoNow = new DatabaseUtils().sql("select dateVal from testme limit 1").select(LocalDate.class);
+        System.out.println(alsoNow.get().atStartOfDay());
+    }
+
+    @Test
+    public void testTransaction() throws Exception {
+        System.out.println(new DatabaseUtils().sql("select count(*) from testme").select(int.class));
+        new DatabaseUtils().transactionCallback(databaseUtils -> {
+            databaseUtils.sql("insert into testme (stringVal, doubleVal, dateVal, timestameVal) VALUES(?, ?, ?, ?)")
+                    .bindVars("hello", 2.0, new Date(), new Date()).execute();
+            databaseUtils.rollback();
+            return null;
+        });
+        System.out.println(new DatabaseUtils().sql("select count(*) from testme").select(int.class));
+    }
+
+    @Test
+    public void testResultSet() throws Exception {
+        new DatabaseUtils().sql("select * from testme").resultSetCallback(resultSet -> {
+            try {
+                while(resultSet.next()) {
+                    System.out.println(resultSet.getObject(1));
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            return null;
+        });
+    }
+
+    @Test
+    public void testEntity() throws Exception {
+        List<Listing> listings = new DatabaseUtils().sql("select * from listing").selectList(Listing.class);
+        listings.forEach(listing -> {
+            System.out.print(listing.getId() + ", ");
+            System.out.print(listing.getBathrooms() + ", ");
+            System.out.print(listing.getAddress().getCity() + ", ");
+            System.out.print(listing.getListingDetails().get(0).getParking() + ", ");
+            listing.getPhotos().forEach(photo -> System.out.print(photo.getName() + ", "));
+            listing.getListingDetails().get(0).getExteriorFeatures().forEach(photo -> System.out.print(photo.getName() + ", "));
+            listing.getListingDetails().get(0).getOtherRooms().forEach(photo -> System.out.print(photo.getName() + ", "));
+            System.out.println();
+        });
+        Address.getAllAddressses().forEach(address -> System.out.print(address.getStreet() + ", "));
+        System.out.println();
     }
 }
