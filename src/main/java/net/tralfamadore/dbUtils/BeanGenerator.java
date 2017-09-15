@@ -313,5 +313,7 @@ public class BeanGenerator {
                 .oneToMany("ListingDetail", "listing_id", "id", "listingDetails")
                 .oneToMany("Photo", "listing_id", "id", "photos")
                 .createBean("listing");
+
+        new BeanGenerator().packageName("net.tralfamadore.dbUtils.entity").createBean("testme");
     }
 }

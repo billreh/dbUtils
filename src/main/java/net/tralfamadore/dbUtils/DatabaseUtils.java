@@ -31,7 +31,7 @@ public class DatabaseUtils {
     /** The query cache */
     private static final Map<String,Tuple4<Long,Long,TimeUnit,Object>> cache = new HashMap<>();
     /** The session factory */
-    private static SessionFactory sessionFactory;
+    private static Map<String,SessionFactory> sessionFactories = new HashMap<>();
     /** The type of time unit to use for caching */
     private TimeUnit cacheTimeUnit;
     /** The number of time units to cache for */
@@ -46,15 +46,33 @@ public class DatabaseUtils {
     private Session session;
     /** Whether or not we're in a transaction */
     private boolean inTransaction;
+    /** The config file */
+    private String config;
+
+    /**
+     * Instantiate a new DatabaseUtils object for the default config.
+     */
+    public DatabaseUtils() {
+        this("default");
+    }
+
+    /**
+     * Instantiate a new DatabaseUtils object for the given config.
+     * @param config The config to use.  Should be the name of the config file minus the ".db.properties".
+     */
+    public DatabaseUtils(String config) {
+        this.config = config;
+    }
 
     /**
      * Get the session factory.
+     * @param config The config for which to get the session factory.
      * @return The session factory.
      */
-    private static SessionFactory sessionFactory() {
-        if(sessionFactory == null)
-            bootstrap();
-        return sessionFactory;
+    private static SessionFactory sessionFactory(String config) {
+        if(!sessionFactories.containsKey(config))
+            bootstrap(config);
+        return sessionFactories.get(config);
     }
 
     /**
@@ -63,27 +81,61 @@ public class DatabaseUtils {
      */
     private Session session() {
         if(session == null)
-            session = sessionFactory().openSession();
+            session = sessionFactory(config).openSession();
         return session;
     }
 
     /**
      * Bootstrap the db connection.
+     * @param config The config to bootstrap for.
      */
-    private static void bootstrap() {
-        if(sessionFactory != null)
+    private static void bootstrap(String config) {
+        if(sessionFactories.containsKey(config))
             return;
         synchronized (Bootstrap.class) {
-            Configuration cfg = new Configuration();
-            cfg.setProperty("hibernate.connection.username", "root");
-            cfg.setProperty("hibernate.connection.password", "root");
-            cfg.setProperty("hibernate.connection.url", "jdbc:mysql://localhost:3306/test");
+            Configuration cfg = readConfig(config);
             hibernateAnnotatedClasses().forEach(cfg::addAnnotatedClass);
-            sessionFactory = cfg.buildSessionFactory(
+            sessionFactories.put(config, cfg.buildSessionFactory(
                     new StandardServiceRegistryBuilder()
                             .applySettings(cfg.getProperties())
-                            .build());
+                            .build()));
         }
+    }
+
+    /**
+     * Read the config file.
+     * @param config The config file name, minus the ".db.properties" at the end.
+     * @return A new hibernate Configuration.
+     */
+    private static Configuration readConfig(String config) {
+        Configuration cfg = new Configuration();
+        ApplicationProperties props = ApplicationProperties.getInstance();
+        config = config + ".db";
+
+        Optional<Properties> oprops = props.getProperties(config);
+        Optional<String> username = props.getProperty(config, "database.username");
+        Optional<String> password = props.getProperty(config, "database.password");
+        Optional<String> url = props.getProperty(config, "database.url");
+
+        if(!oprops.isPresent())
+            throw new RuntimeException("File " + config + ".properties not found!");
+        if(!username.isPresent())
+            throw new RuntimeException("Can't find database.username property in properties file " + "blah");
+        if(!password.isPresent())
+            throw new RuntimeException("Can't find database.password property in properties file " + "blah");
+        if(!url.isPresent())
+            throw new RuntimeException("Can't find database.url property in properties file " + "blah");
+
+        oprops.ifPresent(properties -> properties.stringPropertyNames().forEach(prop -> {
+            if(prop.startsWith("hibernate."))
+                cfg.setProperty(prop, properties.getProperty(prop));
+        }));
+
+        cfg.setProperty("hibernate.connection.username", username.get());
+        cfg.setProperty("hibernate.connection.password", password.get());
+        cfg.setProperty("hibernate.connection.url", url.get());
+
+        return cfg;
     }
 
     /**
@@ -118,10 +170,20 @@ public class DatabaseUtils {
 
     /**
      * Shut it down.
+     * @param config Shut down the session factory for this config.
+     */
+    synchronized static public void shutdown(String config) {
+        sessionFactory(config).close();
+        sessionFactories.remove(config);
+    }
+
+    /**
+     * Shut it down.
      */
     synchronized static public void shutdown() {
-        sessionFactory().close();
-        sessionFactory = null;
+        for(String config : sessionFactories.keySet()) {
+            shutdown(config);
+        }
     }
 
     /**
@@ -140,7 +202,7 @@ public class DatabaseUtils {
      * @return The {@link TableDescription} for the given table and schema names.
      */
     public TableDescription getTableDescription(String tableName, String schemaName) {
-        try (Session hibernateSession = sessionFactory().openSession()) {
+        try (Session hibernateSession = session()) {
             return hibernateSession.doReturningWork(connection -> TableDescription.getTableDescription(connection, tableName, schemaName));
         }
     }
@@ -163,7 +225,7 @@ public class DatabaseUtils {
      * @return A list of table names that match the table name pattern.
      */
     public List<String> getTableNames(String schemaName, String tableNamePattern) {
-        try(Session hibernateSession = sessionFactory().openSession()) {
+        try(Session hibernateSession = session()) {
             return hibernateSession.doReturningWork(connection -> getTableNames(connection, tableNamePattern, schemaName));
         }
     }
@@ -175,7 +237,7 @@ public class DatabaseUtils {
      * @return A list of schema names.
      */
     public List<String> getSchemaNames(String schemaNamePattern) {
-        try(Session hibernateSession = sessionFactory().openSession()) {
+        try(Session hibernateSession = session()) {
             return hibernateSession.doReturningWork(connection -> getSchemaNames(connection, schemaNamePattern));
         }
     }
@@ -185,7 +247,7 @@ public class DatabaseUtils {
      * @return A list of all catalog names.
      */
     public List<String> getCatalogNames() {
-        try(Session hibernateSession = sessionFactory().openSession()) {
+        try(Session hibernateSession = session()) {
             return hibernateSession.doReturningWork(DatabaseUtils::getCatalogNames);
         }
     }
@@ -414,7 +476,7 @@ public class DatabaseUtils {
                 return (List<Object[]>) result.getValue4();
             }
         }
-        try (Session hibernateSession = sessionFactory().openSession()) {
+        try (Session hibernateSession = session()) {
             return hibernateSession.doReturningWork(connection -> {
                 PreparedStatement statement = connection.prepareStatement(sql);
                 bindVariables(bindVars, statement);
@@ -450,7 +512,7 @@ public class DatabaseUtils {
                 return result == null ? Optional.empty() : Optional.of((T) result.getValue4());
             }
         }
-        try (Session hibernateSession = sessionFactory().openSession()) {
+        try (Session hibernateSession = session()) {
             T result;
             if(!type.isAnnotationPresent(Entity.class) ) {
                 result = hibernateSession.doReturningWork(connection -> {
@@ -498,7 +560,7 @@ public class DatabaseUtils {
                 return (List<T>) result.getValue4();
             }
         }
-        try (Session hibernateSession = sessionFactory().openSession()) {
+        try (Session hibernateSession = session()) {
             List<T> result;
             if(!type.isAnnotationPresent(Entity.class) ) {
                 result = hibernateSession.doReturningWork(connection -> {
@@ -552,7 +614,7 @@ public class DatabaseUtils {
                 return (List<Map<String,Object>>) result.getValue4();
             }
         }
-        try (Session hibernateSession = sessionFactory().openSession()) {
+        try (Session hibernateSession = session()) {
             return hibernateSession.doReturningWork(connection -> {
                 PreparedStatement statement = connection.prepareStatement(sql);
                 bindVariables(bindVars, statement);
@@ -688,7 +750,7 @@ public class DatabaseUtils {
      * @return An Optional Tuple4<T,U,V,W> object.
      */
     public <T,U,V,W> Optional<Tuple4<T,U,V,W>> selectTuple(String query, List<Object> bindVars, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4) {
-        try (Session hibernateSession = sessionFactory().openSession()) {
+        try (Session hibernateSession = session()) {
             return hibernateSession.doReturningWork(connection -> {
                 PreparedStatement preparedStatement = connection.prepareStatement(query);
                 bindVariables(bindVars, preparedStatement);
@@ -731,7 +793,7 @@ public class DatabaseUtils {
      * @return A List of  Tuple4<T,U,V,W> objects.
      */
     public <T,U,V,W> List<Tuple4<T,U,V,W>> selectTupleList(String query, List<Object> bindVars, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4) {
-        try (Session hibernateSession = sessionFactory().openSession()) {
+        try (Session hibernateSession = session()) {
             return hibernateSession.doReturningWork(connection -> {
                 PreparedStatement preparedStatement = connection.prepareStatement(query);
                 bindVariables(bindVars, preparedStatement);
@@ -777,7 +839,7 @@ public class DatabaseUtils {
      * @return An Optional Tuple5<T,U,V,W,X> object.
      */
     public <T,U,V,W,X> Optional<Tuple5<T,U,V,W,X>> selectTuple(String query, List<Object> bindVars, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4, Class<X> class5) {
-        try (Session hibernateSession = sessionFactory().openSession()) {
+        try (Session hibernateSession = session()) {
             return hibernateSession.doReturningWork(connection -> {
                 PreparedStatement preparedStatement = connection.prepareStatement(query);
                 bindVariables(bindVars, preparedStatement);
@@ -825,7 +887,7 @@ public class DatabaseUtils {
      * @return A List of  Tuple4<T,U,V,W,X> objects.
      */
     public <T,U,V,W,X> List<Tuple5<T,U,V,W,X>> selectTupleList(String query, List<Object> bindVars, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4, Class<X> class5) {
-        try (Session hibernateSession = sessionFactory().openSession()) {
+        try (Session hibernateSession = session()) {
             return hibernateSession.doReturningWork(connection -> {
                 PreparedStatement preparedStatement = connection.prepareStatement(query);
                 bindVariables(bindVars, preparedStatement);
@@ -875,7 +937,7 @@ public class DatabaseUtils {
      * @return An Optional Tuple6<T,U,V,W,X,Y> object.
      */
     public <T,U,V,W,X,Y> Optional<Tuple6<T,U,V,W,X,Y>> selectTuple(String query, List<Object> bindVars, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4, Class<X> class5, Class<Y> class6) {
-        try (Session hibernateSession = sessionFactory().openSession()) {
+        try (Session hibernateSession = session()) {
             return hibernateSession.doReturningWork(connection -> {
                 PreparedStatement preparedStatement = connection.prepareStatement(query);
                 bindVariables(bindVars, preparedStatement);
@@ -927,7 +989,7 @@ public class DatabaseUtils {
      * @return A List of  Tuple6<T,U,V,W,X,Y> objects.
      */
     public <T,U,V,W,X,Y> List<Tuple6<T,U,V,W,X,Y>> selectTupleList(String query, List<Object> bindVars, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4, Class<X> class5, Class<Y> class6) {
-        try (Session hibernateSession = sessionFactory().openSession()) {
+        try (Session hibernateSession = session()) {
             return hibernateSession.doReturningWork(connection -> {
                 PreparedStatement preparedStatement = connection.prepareStatement(query);
                 bindVariables(bindVars, preparedStatement);
@@ -981,7 +1043,7 @@ public class DatabaseUtils {
      * @return An Optional Tuple7<T,U,V,W,X,Y,Z> object.
      */
     public <T,U,V,W,X,Y,Z> Optional<Tuple7<T,U,V,W,X,Y,Z>> selectTuple(String query, List<Object> bindVars, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4, Class<X> class5, Class<Y> class6, Class<Z> class7) {
-        try (Session hibernateSession = sessionFactory().openSession()) {
+        try (Session hibernateSession = session()) {
             return hibernateSession.doReturningWork(connection -> {
                 PreparedStatement preparedStatement = connection.prepareStatement(query);
                 bindVariables(bindVars, preparedStatement);
@@ -1037,7 +1099,7 @@ public class DatabaseUtils {
      * @return A List of  Tuple7<T,U,V,W,X,Y,Z> objects.
      */
     public <T,U,V,W,X,Y,Z> List<Tuple7<T,U,V,W,X,Y,Z>> selectTupleList(String query, List<Object> bindVars, Class<T> class1, Class<U> class2, Class<V> class3, Class<W> class4, Class<X> class5, Class<Y> class6, Class<Z> class7) {
-        try (Session hibernateSession = sessionFactory().openSession()) {
+        try (Session hibernateSession = session()) {
             return hibernateSession.doReturningWork(connection -> {
                 PreparedStatement preparedStatement = connection.prepareStatement(query);
                 bindVariables(bindVars, preparedStatement);

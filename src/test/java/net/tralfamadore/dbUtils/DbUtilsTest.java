@@ -5,6 +5,7 @@ import net.tralfamadore.*;
 import net.tralfamadore.config.AppConfig;
 import net.tralfamadore.dbUtils.entity.Address;
 import net.tralfamadore.dbUtils.entity.Listing;
+import net.tralfamadore.dbUtils.entity.Testme;
 import net.tralfamadore.domain.*;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -17,6 +18,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -313,14 +315,54 @@ public class DbUtilsTest {
 
     @Test
     public void testTransaction() throws Exception {
-        System.out.println(new DatabaseUtils().sql("select count(*) from testme").select(int.class));
+        long countBefore = new DatabaseUtils().sql("select count(*) from testme").select(long.class).orElse(0L);
+        new DatabaseUtils().transactionCallback(databaseUtils -> {
+            databaseUtils.sql("insert into testme (stringVal, doubleVal, dateVal, timestameVal) VALUES(?, ?, ?, ?)")
+                    .bindVars("hello", 2.0, new Date(), new Date()).execute();
+            return null;
+        });
+        long countAfter = new DatabaseUtils().sql("select count(*) from testme").select(long.class).orElse(0L);
+        assertEquals(countBefore + 1, countAfter);
+
+        countBefore = new DatabaseUtils().sql("select count(*) from testme").select(long.class).orElse(0L);
+        new DatabaseUtils().transactionCallback(databaseUtils -> {
+            Testme testme = new Testme();
+            testme.setDateval(LocalDate.now());
+            testme.setDoubleval(3.3);
+            testme.setStringval("moo");
+            testme.setTimestameval(LocalDateTime.now());
+            databaseUtils.store(testme);
+            return null;
+        });
+        countAfter = new DatabaseUtils().sql("select count(*) from testme").select(long.class).orElse(0L);
+        assertEquals(countBefore + 1, countAfter);
+    }
+
+    @Test
+    public void testTransactionRollback() throws Exception {
+        long countBefore = new DatabaseUtils().sql("select count(*) from testme").select(long.class).orElse(0L);
         new DatabaseUtils().transactionCallback(databaseUtils -> {
             databaseUtils.sql("insert into testme (stringVal, doubleVal, dateVal, timestameVal) VALUES(?, ?, ?, ?)")
                     .bindVars("hello", 2.0, new Date(), new Date()).execute();
             databaseUtils.rollback();
             return null;
         });
-        System.out.println(new DatabaseUtils().sql("select count(*) from testme").select(int.class));
+        long countAfter = new DatabaseUtils().sql("select count(*) from testme").select(long.class).orElse(0L);
+        assertEquals(countBefore, countAfter);
+
+        countBefore = new DatabaseUtils().sql("select count(*) from testme").select(long.class).orElse(0L);
+        new DatabaseUtils().transactionCallback(databaseUtils -> {
+            Testme testme = new Testme();
+            testme.setDateval(LocalDate.now());
+            testme.setDoubleval(3.3);
+            testme.setStringval("moo");
+            testme.setTimestameval(LocalDateTime.now());
+            databaseUtils.store(testme);
+            databaseUtils.rollback();
+            return null;
+        });
+        countAfter = new DatabaseUtils().sql("select count(*) from testme").select(long.class).orElse(0L);
+        assertEquals(countBefore, countAfter);
     }
 
     @Test
@@ -352,5 +394,11 @@ public class DbUtilsTest {
         });
         Address.getAllAddressses().forEach(address -> System.out.print(address.getStreet() + ", "));
         System.out.println();
+    }
+
+    @Test
+    public void testMysqlConfig() throws Exception {
+        Optional<Testme> testme = new DatabaseUtils("mysql").sql("select * from testme limit 1").select(Testme.class);
+        testme.ifPresent(testme1 -> System.out.println(testme1.getDateval()));
     }
 }
