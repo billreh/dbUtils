@@ -449,6 +449,21 @@ public class DatabaseUtils {
             return session().doReturningWork(connectionCallback::apply);
     }
 
+    public <T> boolean entityCallback(Class<T> type, EntityCallback<T> entityCallback) {
+        boolean passed = true;
+
+        List<T> entities = selectList(type);
+
+        for(T entity : entities) {
+            if(!entityCallback.apply(entity)) {
+                passed = false;
+                break;
+            }
+        }
+
+        return passed;
+    }
+
     /**
      * Select a row from the database as an array of objects.
      * @return An array of objects.

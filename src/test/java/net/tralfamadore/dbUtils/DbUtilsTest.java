@@ -401,4 +401,15 @@ public class DbUtilsTest {
         Optional<Testme> testme = new DatabaseUtils("mysql").sql("select * from testme limit 1").select(Testme.class);
         testme.ifPresent(testme1 -> System.out.println(testme1.getDateval()));
     }
+
+    @Test
+    public void testEntityCallback() throws Exception {
+        new DatabaseUtils().sql("select * from address").entityCallback(Address.class, addr -> {
+            if(!addr.getStreet().toLowerCase().contains("queen")) {
+                System.out.println(addr.getStreet());
+                return false;
+            }
+            return true;
+        });
+    }
 }
