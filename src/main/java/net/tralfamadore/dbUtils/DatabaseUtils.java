@@ -1,20 +1,16 @@
 package net.tralfamadore.dbUtils;
 
+import com.google.common.reflect.ClassPath;
 import net.tralfamadore.*;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import org.hibernate.cfg.Configuration;
-import org.reflections.Reflections;
-import org.reflections.scanners.ResourcesScanner;
-import org.reflections.scanners.SubTypesScanner;
-import org.reflections.util.ClasspathHelper;
-import org.reflections.util.ConfigurationBuilder;
-import org.reflections.util.FilterBuilder;
 
 import javax.persistence.Entity;
 import javax.persistence.MappedSuperclass;
 import javax.persistence.Query;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -145,21 +141,14 @@ public class DatabaseUtils {
     private static synchronized List<Class<?>> hibernateAnnotatedClasses(){
         List<Class <?>> hibernateAnnotatedClasses = new ArrayList<>();
 
-        List<ClassLoader> classLoadersList = new LinkedList<>();
-        classLoadersList.add(ClasspathHelper.contextClassLoader());
-        classLoadersList.add(ClasspathHelper.staticClassLoader());
-        classLoadersList.add(Bootstrap.class.getClassLoader());
-
-
-        Reflections reflections = new Reflections(new ConfigurationBuilder()
-                .setScanners(new SubTypesScanner(false /* don't exclude Object.class */), new ResourcesScanner())
-                .setUrls(ClasspathHelper.forClassLoader(classLoadersList.toArray(new ClassLoader[0])))
-                // TODO if we need to go down to the beans folder we have to figure out how to get the project name,
-                .filterInputsBy(new FilterBuilder().include(FilterBuilder.prefix("net.tralfamadore"))));
-
-        Set<Class<?>> allClasses = reflections.getSubTypesOf(Object.class);
-
-        for(Class<?> clazz : allClasses) {
+        ClassPath cp;
+        try {
+            cp = ClassPath.from(Thread.currentThread().getContextClassLoader());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        for(ClassPath.ClassInfo info : cp.getTopLevelClassesRecursive("net.tralfamadore")) {
+            Class clazz = info.load();
             if (clazz.isAnnotationPresent(Entity.class) || clazz.isAnnotationPresent(MappedSuperclass.class)){
                 hibernateAnnotatedClasses.add(clazz);
             }
@@ -449,6 +438,13 @@ public class DatabaseUtils {
             return session().doReturningWork(connectionCallback::apply);
     }
 
+    /**
+     * Feed a list of entity results through the callback.  If the callback returns false, stop.
+     * @param type is the type of entity.
+     * @param entityCallback is the entity callback.
+     * @param <T> is the type.
+     * @return true for success, false for failure.
+     */
     public <T> boolean entityCallback(Class<T> type, EntityCallback<T> entityCallback) {
         boolean passed = true;
 
